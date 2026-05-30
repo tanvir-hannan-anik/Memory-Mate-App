@@ -103,9 +103,26 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
           const latest = all[0]
           setSessionId(latest.id); setSessionName(latest.name)
           await loadMessages(latest.id)
-        } else { await createSession(profile!.id) }
-      } catch { /* offline */ }
-      finally { if (!cancelled) setInitializing(false) }
+        } else {
+          await createSession(profile!.id)
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
+          const status = err?.response?.status
+          setMessages([{
+            id: 'init-err',
+            role: 'assistant',
+            content: tr(
+              `Chat server error${status ? ` (${status})` : ''}: ${detail}. Check your Render backend URL and Supabase environment variables.`,
+              `সার্ভার সংযোগ ব্যর্থ: ${detail}`
+            ),
+            timestamp: new Date(),
+          }])
+        }
+      } finally {
+        if (!cancelled) setInitializing(false)
+      }
     }
     init()
     return () => { cancelled = true }
@@ -141,9 +158,15 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
     let activeSessionId = sessionId
     if (!activeSessionId && profile?.id) {
       try { const s = await createSession(profile.id); activeSessionId = s.id }
-      catch {
+      catch (err: any) {
+        const detail = err?.response?.data?.detail || err?.message || 'unknown error'
+        const status = err?.response?.status
         setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant',
-          content: tr('Could not connect to the chat server.', 'চ্যাট সার্ভারে সংযোগ হয়নি।'), timestamp: new Date() }])
+          content: tr(
+            `Could not connect to the chat server${status ? ` (${status})` : ''}: ${detail}`,
+            `সার্ভারে সংযোগ হয়নি: ${detail}`
+          ),
+          timestamp: new Date() }])
         return
       }
     }

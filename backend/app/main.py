@@ -40,3 +40,17 @@ app.include_router(plans.router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "Memoire API"}
+
+
+@app.get("/debug")
+async def debug():
+    """Check all service connections — use this to diagnose deployment issues."""
+    result: dict = {}
+    try:
+        from app.db.supabase import get_supabase
+        sb = get_supabase()
+        sb.table("chat_sessions").select("id").limit(1).execute()
+        result["supabase"] = "ok"
+    except Exception as e:
+        result["supabase"] = f"ERROR: {e}"
+    return result
