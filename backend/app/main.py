@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -8,10 +9,8 @@ from app.services.notifications import start_scheduler, stop_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     start_scheduler()
     yield
-    # Shutdown
     stop_scheduler()
 
 
@@ -22,15 +21,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-import os
-
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
-_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+_raw = os.environ.get("ALLOWED_ORIGINS", "*")
+_origins = [o.strip() for o in _raw.split(",")] if _raw != "*" else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_credentials=True,
+    allow_credentials=False,   # we use Authorization header, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
