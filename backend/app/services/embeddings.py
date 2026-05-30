@@ -1,34 +1,36 @@
 """
-all-MiniLM-L6-v2 — runs 100% locally, no API key, completely free.
-384-dimensional embeddings. Downloads ~90MB on first run, then cached.
+Gemini text-embedding-004 — replaces sentence-transformers to avoid PyTorch memory overhead.
+Uses httpx (already a dependency) to call the Gemini REST API directly.
+Keeps 384 dimensions to match the existing Supabase vector(384) schema.
 """
-import asyncio
-from sentence_transformers import SentenceTransformer
+import httpx
+from app.core.config import settings
 
-_model: SentenceTransformer | None = None
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
+_EMBED_URL = (
+    "https://generativelanguage.googleapis.com/v1beta"
+    "/models/text-embedding-004:embedContent"
+)
 
 
-def _get_model() -> SentenceTransformer:
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(EMBEDDING_MODEL)
-    return _model
-
-
-def _encode_sync(text: str) -> list[float]:
-    model = _get_model()
-    embedding = model.encode(text, normalize_embeddings=True)
-    return embedding.tolist()
+async def _embed(text: str) -> list[float]:
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            _EMBED_URL,
+            params={"key": settings.gemini_key_extraction},
+            json={
+                "model": "models/text-embedding-004",
+                "content": {"parts": [{"text": text}]},
+                "outputDimensionality": EMBEDDING_DIM,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()["embedding"]["values"]
 
 
 async def embed_text(text: str) -> list[float]:
-    """Embed a document for indexing (e.g. conversation summary)."""
-    return await asyncio.to_thread(_encode_sync, text)
+    return await _embed(text)
 
 
 async def embed_query(text: str) -> list[float]:
-    """Embed a search query."""
-    return await asyncio.to_thread(_encode_sync, text)
+    return await _embed(text)
