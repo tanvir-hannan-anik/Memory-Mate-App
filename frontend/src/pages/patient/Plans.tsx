@@ -7,22 +7,23 @@ import Avatar from '@/components/ui/Avatar'
 import { format, addDays, startOfDay } from 'date-fns'
 import { db, fsListenPlans, fsAddPlan, fsUpdatePlan, fsDeletePlan, logAppEvent } from '@/lib/firebase'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
-import { fmtDayShort, fmtMonthDay, fmtDayFull } from '@/lib/dateLocale'
+import { fmtDayShort, fmtMonthDay, fmtDayFull, fmtMonthShort, fmtDayNum, toBnDigits } from '@/lib/dateLocale'
+import PlanCalendarModal from '@/components/ui/PlanCalendarModal'
 import {
   initGoogleCalendar, requestCalendarAccess,
   createCalendarEvent, listCalendarEvents, buildCalendarUrl, CalendarEvent,
 } from '@/lib/googleCalendar'
 
-// â"€â"€ helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── helpers ──────────────────────────────────────────────────────────
 function isoDate(d: Date) {
   return format(d, 'yyyy-MM-dd')
 }
 function fmtDayLabel(d: Date, today: Date, tr: (en: string, bn: string) => string, lang: 'en' | 'bn') {
   const todayStr = isoDate(today)
   const ds = isoDate(d)
-  if (ds === todayStr) return tr('Today', 'à¦†à¦œ')
-  if (ds === isoDate(addDays(today, 1))) return tr('Tomorrow', 'à¦†à¦—à¦¾à¦®à§€à¦•à¦¾à¦²')
-  if (ds === isoDate(addDays(today, -1))) return tr('Yesterday', 'à¦—à¦¤à¦•à¦¾à¦²')
+  if (ds === todayStr) return tr('Today', 'আজ')
+  if (ds === isoDate(addDays(today, 1))) return tr('Tomorrow', 'আগামীকাল')
+  if (ds === isoDate(addDays(today, -1))) return tr('Yesterday', 'গতকাল')
   return `${fmtDayFull(d, lang)}, ${fmtMonthDay(d, lang)}`
 }
 
@@ -32,11 +33,11 @@ const TYPE_ICONS: Record<PlanType, string> = {
 }
 
 const PLAN_TYPES = [
-  { v: 'medicine'    as PlanType, en: 'Medicine',    bn: 'à¦"à¦·à§à¦§' },
-  { v: 'call'        as PlanType, en: 'Call',         bn: 'à¦«à§‹à¦¨' },
-  { v: 'visit'       as PlanType, en: 'Visit',        bn: 'à¦¦à§‡à¦–à¦¾' },
-  { v: 'task'        as PlanType, en: 'Task',         bn: 'à¦•à¦¾à¦œ' },
-  { v: 'appointment' as PlanType, en: 'Appointment',  bn: 'à¦…à§à¦¯à¦¾à¦ªà¦¯à¦¼à§‡à¦¨à§à¦Ÿà¦®à§‡à¦¨à§à¦Ÿ' },
+  { v: 'medicine'    as PlanType, en: 'Medicine',    bn: 'ওষুধ' },
+  { v: 'call'        as PlanType, en: 'Call',         bn: 'ফোন' },
+  { v: 'visit'       as PlanType, en: 'Visit',        bn: 'দেখা' },
+  { v: 'task'        as PlanType, en: 'Task',         bn: 'কাজ' },
+  { v: 'appointment' as PlanType, en: 'Appointment',  bn: 'অ্যাপয়েন্টমেন্ট' },
 ]
 const QUICK_TIMES = ['7:00 AM', '8:30 AM', '11:00 AM', '1:00 PM', '4:00 PM', '8:00 PM']
 
@@ -46,7 +47,9 @@ export default function Plans() {
   const today = startOfDay(new Date())
   const [selectedDate, setSelectedDate] = useState(today)
   const [plans, setPlans] = useState<Plan[]>([])
-  const [planDatesSet, setPlanDatesSet] = useState<Set<string>>(new Set())
+  const [planDatesMap, setPlanDatesMap] = useState<Record<string, string[]>>({})
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calViewDate, setCalViewDate] = useState(today)
   const [showAdd, setShowAdd] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([])
@@ -62,29 +65,36 @@ export default function Plans() {
   const [newRecurring, setNewRecurring] = useState(false)
   const [syncToCalendar, setSyncToCalendar] = useState(false)
 
-  // Day strip â€" 14 days from today
+  // Day strip – 14 days from today
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i))
   const dateStr = isoDate(selectedDate)
   const todayStr = isoDate(today)
 
-  // â"€â"€ Firestore listener â€" plans for selected date â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Firestore listener – plans for selected date ──────────────────
   useEffect(() => {
     if (!profile) return
     const unsub = fsListenPlans(profile.id, dateStr, docs => setPlans(docs as unknown as Plan[]))
     return unsub
   }, [profile, dateStr])
 
-  // â"€â"€ Track all plan dates (for day-strip dots) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Track all plan dates + types (for day-strip dots & calendar) ─────
   useEffect(() => {
     if (!profile) return
     const q = query(collection(db, 'plans'), where('patientId', '==', profile.id))
     const unsub = onSnapshot(q, snap => {
-      setPlanDatesSet(new Set(snap.docs.map(d => d.data().date as string)))
+      const map: Record<string, string[]> = {}
+      snap.docs.forEach(d => {
+        const date = d.data().date as string
+        const type = (d.data().type as string) || 'task'
+        if (!map[date]) map[date] = []
+        if (!map[date].includes(type)) map[date].push(type)
+      })
+      setPlanDatesMap(map)
     }, err => console.warn('planDates error:', err.message))
     return unsub
   }, [profile])
 
-  // â"€â"€ Google Calendar â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Google Calendar ───────────────────────────────────────────────
   useEffect(() => { initGoogleCalendar().catch(() => {}) }, [])
 
   async function connectCalendar() {
@@ -93,10 +103,10 @@ export default function Plans() {
       await requestCalendarAccess()
       setCalConnected(true)
       setCalEvents(await listCalendarEvents(20))
-      setSyncMsg(tr('Calendar connected!', 'à¦•à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¡à¦¾à¦° à¦¸à¦‚à¦¯à§à¦•à§à¦¤!'))
+      setSyncMsg(tr('Calendar connected!', 'ক্যালেন্ডার সংযুক্ত!'))
       setTimeout(() => setSyncMsg(''), 2000)
     } catch {
-      setSyncMsg(tr('Calendar needs VITE_GOOGLE_CLIENT_ID', 'Client ID à¦ªà§à¦°à¦¯à¦¼à§‹à¦œà¦¨'))
+      setSyncMsg(tr('Calendar needs VITE_GOOGLE_CLIENT_ID', 'Client ID প্রয়োজন'))
       setTimeout(() => setSyncMsg(''), 4000)
     }
     setCalLoading(false)
@@ -105,11 +115,11 @@ export default function Plans() {
   async function importFromCalendar(ev: CalendarEvent) {
     if (!profile) return
     await fsAddPlan(profile.id, { title: ev.title, type: 'appointment', date: ev.date, time: ev.time || null, is_recurring: false, is_done: false })
-    setSyncMsg(tr('Event imported!', 'à¦‡à¦­à§‡à¦¨à§à¦Ÿ à¦†à¦®à¦¦à¦¾à¦¨à¦¿ à¦¹à¦¯à¦¼à§‡à¦›à§‡!'))
+    setSyncMsg(tr('Event imported!', 'ইভেন্ট আমদানি হয়েছে!'))
     setTimeout(() => setSyncMsg(''), 1500)
   }
 
-  // â"€â"€ Plan CRUD â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Plan CRUD ─────────────────────────────────────────────────────
   async function addPlan() {
     if (!profile || !newTitle.trim()) return
     setSaving(true)
@@ -137,6 +147,7 @@ export default function Plans() {
   // Sorted plans for selected day
   const sorted = [...plans].sort((a, b) => (a.time || '').localeCompare(b.time || ''))
   const soonest = sorted.find(p => !p.is_done && isoDate(selectedDate) === todayStr)
+  const isPastDate = isoDate(selectedDate) < todayStr
 
   return (
     <div style={{
@@ -145,12 +156,12 @@ export default function Plans() {
       overflow: 'hidden',
     }}>
 
-      {/* â"€â"€ Header â"€â"€ */}
+      {/* ── Header ── */}
       <div style={{ padding: '12px 16px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, letterSpacing: 1.5, color: 'var(--color-ink-mute)', fontWeight: 700 }}>
-              {tr('PLANS', 'à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾')}
+              {tr('PLANS', 'পরিকল্পনা')}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 800,
@@ -159,8 +170,8 @@ export default function Plans() {
               {fmtDayLabel(selectedDate, today, tr, lang)}
             </h1>
             <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 2 }}>
-              {sorted.length} {tr(sorted.length === 1 ? 'event' : 'events', 'à¦Ÿà¦¿ à¦‡à¦­à§‡à¦¨à§à¦Ÿ')}
-              {' Â· '}{sorted.filter(p => p.is_done).length} {tr('done', 'à¦¹à¦¯à¦¼à§‡ à¦—à§‡à¦›à§‡')}
+              {lang === 'bn' ? toBnDigits(sorted.length) : sorted.length} {tr(sorted.length === 1 ? 'event' : 'events', 'টি ইভেন্ট')}
+              {' · '}{lang === 'bn' ? toBnDigits(sorted.filter(p => p.is_done).length) : sorted.filter(p => p.is_done).length} {tr('done', 'হয়ে গেছে')}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -178,14 +189,33 @@ export default function Plans() {
               {calLoading
                 ? <span style={{ width: 12, height: 12, borderRadius: 6, border: '2px solid var(--color-accent)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
                 : <Icon name="calendar" size={14} color="var(--color-ink-soft)" />}
-              {calConnected ? 'Cal âœ"' : 'Google Cal'}
+              {calConnected ? 'Cal ✓' : 'Google Cal'}
             </button>
-            <button onClick={() => setShowAdd(true)} style={{
-              width: 44, height: 44, borderRadius: 22,
-              background: 'var(--color-accent)', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 16px rgba(30,110,114,0.4)',
-            }}>
+            {/* Calendar picker icon */}
+            <button
+              onClick={() => setShowCalendar(true)}
+              title={tr('Open calendar', 'ক্যালেন্ডার খুলুন')}
+              style={{
+                width: 44, height: 44, borderRadius: 14,
+                background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Icon name="calendar" size={20} color="var(--color-accent)" />
+            </button>
+            {/* Add button — disabled on past dates */}
+            <button
+              onClick={() => !isPastDate && setShowAdd(true)}
+              disabled={isPastDate}
+              style={{
+                width: 44, height: 44, borderRadius: 22,
+                background: isPastDate ? 'var(--color-border)' : 'var(--color-accent)',
+                border: 'none',
+                cursor: isPastDate ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: isPastDate ? 'none' : '0 6px 16px rgba(30,110,114,0.4)',
+              }}
+            >
               <Icon name="plus" size={22} color="#fff" />
             </button>
           </div>
@@ -199,14 +229,14 @@ export default function Plans() {
         </div>
       )}
 
-      {/* â"€â"€ Day strip â"€â"€ */}
+      {/* ── Day strip ── */}
       <div style={{ padding: '12px 16px 8px', overflowX: 'auto', whiteSpace: 'nowrap', flexShrink: 0, scrollbarWidth: 'none' }}>
         <div style={{ display: 'inline-flex', gap: 8 }}>
           {days.map(d => {
             const ds = isoDate(d)
             const active = ds === dateStr
             const isToday2 = ds === todayStr
-            const hasPlans = planDatesSet.has(ds)
+            const hasPlans = (planDatesMap[ds]?.length ?? 0) > 0
             return (
               <button key={ds} onClick={() => setSelectedDate(d)} style={{
                 background: active ? 'var(--color-accent)' : 'var(--color-surface)',
@@ -218,13 +248,13 @@ export default function Plans() {
                 position: 'relative', fontFamily: 'inherit',
               }}>
                 <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8, letterSpacing: 0.5 }}>
-                  {format(d, 'EEE').toUpperCase()}
+                  {fmtDayShort(d, lang).toUpperCase()}
                 </div>
                 <div style={{
                   fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, lineHeight: 1,
                   color: active ? '#fff' : isToday2 ? 'var(--color-accent)' : 'var(--color-ink)',
                 }}>
-                  {d.getDate()}
+                  {fmtDayNum(d, lang)}
                 </div>
                 {hasPlans && (
                   <div style={{ width: 5, height: 5, borderRadius: 3, marginTop: 2, background: active ? '#fff' : 'var(--color-accent)' }} />
@@ -235,7 +265,7 @@ export default function Plans() {
         </div>
       </div>
 
-      {/* â"€â"€ Google Calendar events â"€â"€ */}
+      {/* ── Google Calendar events ── */}
       {calConnected && calEvents.filter(e => e.date === dateStr).length > 0 && (
         <div style={{ margin: '0 16px 8px', background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 16, padding: 12, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -258,14 +288,14 @@ export default function Plans() {
                 border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                 color: 'var(--color-accent-dark)', fontFamily: 'inherit',
               }}>
-                {tr('Import', 'à¦†à¦®à¦¦à¦¾à¦¨à¦¿')}
+                {tr('Import', 'আমদানি')}
               </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* â"€â"€ Timeline â"€â"€ */}
+      {/* ── Timeline ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px 80px' }}>
         {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-ink-soft)' }}>
@@ -273,10 +303,10 @@ export default function Plans() {
               <Icon name="calendar" size={36} color="var(--color-ink-mute)" />
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, color: 'var(--color-ink)', marginTop: 14 }}>
-              {tr('Nothing planned yet', 'à¦•à¦¿à¦›à§ à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾ à¦¨à§‡à¦‡')}
+              {tr('Nothing planned yet', 'কিছু পরিকল্পনা নেই')}
             </div>
             <div style={{ fontSize: 14, marginTop: 4 }}>
-              {tr('Tap + to add an event', '+ à¦šà¦¾à¦ªà§à¦¨ à¦‡à¦­à§‡à¦¨à§à¦Ÿ à¦¯à§‹à¦— à¦•à¦°à¦¤à§‡')}
+              {tr('Tap + to add an event', '+ চাপুন ইভেন্ট যোগ করতে')}
             </div>
           </div>
         ) : (
@@ -290,7 +320,7 @@ export default function Plans() {
                   <div style={{
                     fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: plan.is_done ? 'var(--color-ink-mute)' : isSoon ? 'var(--color-accent)' : 'var(--color-ink)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
                   }}>
-                    {plan.time || 'â€"'}
+                    {plan.time || '–'}
                   </div>
                 </div>
 
@@ -348,7 +378,7 @@ export default function Plans() {
                   {/* NEXT badge */}
                   {isSoon && (
                     <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-accent)', letterSpacing: 0.5, padding: '4px 8px', background: 'var(--color-surface)', borderRadius: 8 }}>
-                      {tr('NEXT', 'à¦ªà¦°à¦¬à¦°à§à¦¤à§€')}
+                      {tr('NEXT', 'পরবর্তী')}
                     </div>
                   )}
 
@@ -391,7 +421,7 @@ export default function Plans() {
         )}
       </div>
 
-      {/* â"€â"€ Add modal â"€â"€ */}
+      {/* ── Add modal ── */}
       {showAdd && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 70, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{
@@ -403,10 +433,10 @@ export default function Plans() {
             {/* Modal header */}
             <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)' }}>
               <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-ink-soft)', fontSize: 15, fontFamily: 'inherit', fontWeight: 600 }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--color-ink)' }}>
-                {tr('New event', 'à¦¨à¦¤à§à¦¨ à¦‡à¦­à§‡à¦¨à§à¦Ÿ')}
+                {tr('New event', 'নতুন ইভেন্ট')}
               </div>
               <button onClick={addPlan} disabled={!newTitle.trim() || saving} style={{
                 background: 'transparent', border: 'none',
@@ -416,19 +446,19 @@ export default function Plans() {
               }}>
                 {saving
                   ? <span style={{ width: 16, height: 16, borderRadius: 8, border: '2px solid var(--color-accent)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
-                  : tr('Save', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£')}
+                  : tr('Save', 'সংরক্ষণ')}
               </button>
             </div>
 
             <div style={{ overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Title */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TITLE', 'à¦¶à¦¿à¦°à§‹à¦¨à¦¾à¦®')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TITLE', 'শিরোনাম')}</div>
                 <input
                   autoFocus
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder={tr('e.g. Lunch with Sara', 'à¦¯à§‡à¦®à¦¨ Sara-à¦° à¦¸à¦¾à¦¥à§‡ à¦–à¦¾à¦¬à¦¾à¦°')}
+                  placeholder={tr('e.g. Lunch with Sara', 'যেমন Sara-র সাথে খাবার')}
                   style={{
                     width: '100%', background: 'var(--color-surface)',
                     border: '1.5px solid var(--color-border)',
@@ -439,9 +469,9 @@ export default function Plans() {
                 />
               </div>
 
-              {/* Type grid â€" 3 columns */}
+              {/* Type grid – 3 columns */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TYPE', 'à¦§à¦°à¦¨')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TYPE', 'ধরন')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {PLAN_TYPES.map(opt => {
                     const a = newType === opt.v
@@ -464,7 +494,7 @@ export default function Plans() {
 
               {/* Day strip */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('DAY', 'à¦¦à¦¿à¦¨')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('DAY', 'দিন')}</div>
                 <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', scrollbarWidth: 'none' }}>
                   <div style={{ display: 'inline-flex', gap: 8 }}>
                     {days.map(d => {
@@ -481,10 +511,10 @@ export default function Plans() {
                           fontFamily: 'inherit',
                         }}>
                           <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, letterSpacing: 0.5 }}>
-                            {format(d, 'EEE').toUpperCase()}
+                            {fmtDayShort(d, lang).toUpperCase()}
                           </div>
-                          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginTop: 2 }}>{d.getDate()}</div>
-                          <div style={{ fontSize: 10, opacity: 0.7 }}>{format(d, 'MMM')}</div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginTop: 2 }}>{fmtDayNum(d, lang)}</div>
+                          <div style={{ fontSize: 10, opacity: 0.7 }}>{fmtMonthShort(d, lang)}</div>
                         </button>
                       )
                     })}
@@ -492,9 +522,9 @@ export default function Plans() {
                 </div>
               </div>
 
-              {/* Quick times â€" 3 columns */}
+              {/* Quick times – 3 columns */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TIME', 'à¦¸à¦®à¦¯à¦¼')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TIME', 'সময়')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {QUICK_TIMES.map(qt => {
                     const a = newTime === qt
@@ -512,7 +542,7 @@ export default function Plans() {
                 <input
                   value={newTime}
                   onChange={e => setNewTime(e.target.value)}
-                  placeholder={tr('Or type a time', 'à¦…à¦¥à¦¬à¦¾ à¦¸à¦®à¦¯à¦¼ à¦²à¦¿à¦–à§à¦¨')}
+                  placeholder={tr('Or type a time', 'অথবা সময় লিখুন')}
                   style={{
                     marginTop: 8, width: '100%',
                     background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
@@ -539,7 +569,7 @@ export default function Plans() {
                 }}>
                   {newRecurring && <Icon name="check" size={14} color="#fff" />}
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>{tr('Repeat every day', 'à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨ à¦ªà§à¦¨à¦°à¦¾à¦¬à§ƒà¦¤à§à¦¤à¦¿')}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>{tr('Repeat every day', 'প্রতিদিন পুনরাবৃত্তি')}</span>
               </button>
 
               {calConnected && (
@@ -558,7 +588,7 @@ export default function Plans() {
                   }}>
                     {syncToCalendar && <Icon name="check" size={14} color="#fff" />}
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>ðŸ"… {tr('Open in Google Calendar', 'Google Calendar-à¦ à¦–à§à¦²à§à¦¨')}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>📅 {tr('Open in Google Calendar', 'Google Calendar-এ খুলুন')}</span>
                 </button>
               )}
 
@@ -574,14 +604,14 @@ export default function Plans() {
               }}>
                 {saving
                   ? <span style={{ width: 18, height: 18, borderRadius: 9, border: '2px solid #fff', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
-                  : tr('Save event', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£ à¦•à¦°à§à¦¨')}
+                  : tr('Save event', 'সংরক্ষণ করুন')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* â"€â"€ Delete confirm â"€â"€ */}
+      {/* ── Delete confirm ── */}
       {confirmDelete && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 60, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ width: '100%', background: 'var(--color-surface)', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, textAlign: 'center' }}>
@@ -589,25 +619,40 @@ export default function Plans() {
               <Icon name="bell" size={28} color="var(--color-danger)" />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, margin: '12px 0 4px', color: 'var(--color-ink)' }}>
-              {tr('Delete this event?', 'à¦à¦‡ à¦‡à¦­à§‡à¦¨à§à¦Ÿ à¦®à§à¦›à¦¬à§‡?')}
+              {tr('Delete this event?', 'এই ইভেন্ট মুছবে?')}
             </h3>
             <p style={{ fontSize: 14, color: 'var(--color-ink-soft)', margin: 0 }}>
-              {tr("You can't undo this.", 'à¦à¦Ÿà¦¾ à¦«à¦¿à¦°à¦¿à¦¯à¦¼à§‡ à¦†à¦¨à¦¾ à¦¯à¦¾à¦¬à§‡ à¦¨à¦¾à¥¤')}
+              {tr("You can't undo this.", 'এটা ফিরিয়ে আনা যাবে না।')}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 18 }}>
               <button onClick={() => setConfirmDelete(null)} style={{
                 background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
-              }}>{tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}</button>
+              }}>{tr('Cancel', 'বাতিল')}</button>
               <button onClick={() => deletePlan(confirmDelete)} style={{
                 background: 'var(--color-danger)', color: '#fff', border: 'none',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: 15, fontWeight: 700,
-              }}>{tr('Delete', 'à¦®à§à¦›à§à¦¨')}</button>
+              }}>{tr('Delete', 'মুছুন')}</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Calendar picker modal ── */}
+      {showCalendar && (
+        <PlanCalendarModal
+          planDatesMap={planDatesMap}
+          calViewDate={calViewDate}
+          setCalViewDate={setCalViewDate}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          todayStr={todayStr}
+          lang={lang}
+          tr={tr}
+          onClose={() => setShowCalendar(false)}
+        />
       )}
     </div>
   )

@@ -40,6 +40,19 @@ export function fmtMonthDay(d: Date, lang: 'en' | 'bn'): string {
   return format(d, 'MMM d')
 }
 
+export function fmtMonthYear(d: Date, lang: 'en' | 'bn'): string {
+  if (lang === 'bn') return `${BN_MONTHS_LONG[d.getMonth()]} ${toBnDigits(d.getFullYear())}`
+  return format(d, 'MMMM yyyy')
+}
+
+export function fmtMonthShort(d: Date, lang: 'en' | 'bn'): string {
+  return lang === 'bn' ? BN_MONTHS_SHORT[d.getMonth()] : format(d, 'MMM')
+}
+
+export function fmtDayNum(d: Date, lang: 'en' | 'bn'): string {
+  return lang === 'bn' ? toBnDigits(d.getDate()) : String(d.getDate())
+}
+
 export function fmtTopBarDate(d: Date, lang: 'en' | 'bn'): string {
   if (lang === 'bn') return fmtDateBn(d, 'short').toUpperCase()
   return format(d, 'EEE, MMM d').toUpperCase()

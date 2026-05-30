@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLang } from '@/contexts/LangContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -10,10 +10,10 @@ import { format } from 'date-fns'
 import { buildCalendarUrl } from '@/lib/googleCalendar'
 
 const TYPES: Array<{ id: PlanType; icon: string; label: string; labelBn: string }> = [
-  { id: 'medicine',    icon: 'pill',     label: 'Medicine', labelBn: 'à¦“à¦·à§à¦§' },
-  { id: 'visit',       icon: 'calendar', label: 'Visit',    labelBn: 'à¦¸à¦¾à¦•à§à¦·à¦¾à§Ž' },
-  { id: 'task',        icon: 'walk',     label: 'Task',     labelBn: 'à¦•à¦¾à¦œ' },
-  { id: 'call',        icon: 'phone',    label: 'Call',     labelBn: 'à¦•à¦²' },
+  { id: 'medicine',    icon: 'pill',     label: 'Medicine', labelBn: 'ওষুধ' },
+  { id: 'visit',       icon: 'calendar', label: 'Visit',    labelBn: 'সাক্ষাৎ' },
+  { id: 'task',        icon: 'walk',     label: 'Task',     labelBn: 'কাজ' },
+  { id: 'call',        icon: 'phone',    label: 'Call',     labelBn: 'কল' },
 ]
 
 const TYPE_ICON_COLOR: Record<PlanType, string> = {
@@ -89,7 +89,7 @@ export default function Remind() {
     await fsDeleteReminder(id)
   }
 
-  // â”€â”€ Toggle switch â”€â”€
+  // ── Toggle switch ──
   function ToggleRow({ label, labelBn, val, set }: { label: string; labelBn: string; val: boolean; set: (v: boolean) => void }) {
     return (
       <div
@@ -126,10 +126,10 @@ export default function Remind() {
       paddingBottom: 30,
     }}>
     <div className={isMobile ? undefined : 'desktop-content'}>
-      {/* â”€â”€ Header â”€â”€ */}
+      {/* ── Header ── */}
       <div style={{ padding: '8px 16px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, margin: 0, flex: 1, color: 'var(--color-ink)' }}>
-          {tr('New reminder', 'à¦¨à¦¤à§à¦¨ à¦…à¦¨à§à¦¸à§à¦®à¦¾à¦°à¦•')}
+          {tr('New reminder', 'নতুন অনুস্মারক')}
         </h1>
         <button
           onClick={save}
@@ -139,15 +139,15 @@ export default function Remind() {
             fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
           }}
         >
-          {saving ? 'â€¦' : saved ? 'âœ“ Saved' : tr('Save', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£')}
+          {saving ? '…' : saved ? '✓ Saved' : tr('Save', 'সংরক্ষণ')}
         </button>
       </div>
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* â”€â”€ Type grid â”€â”€ */}
+        {/* ── Type grid ── */}
         <div>
           <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }}>
-            {tr('TYPE', 'à¦§à¦°à¦¨')}
+            {tr('TYPE', 'ধরন')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {TYPES.map(opt => (
@@ -170,10 +170,10 @@ export default function Remind() {
           </div>
         </div>
 
-        {/* â”€â”€ Title card â”€â”€ */}
+        {/* ── Title card ── */}
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 18, padding: 14 }}>
           <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600, marginBottom: 6 }}>
-            {tr('TITLE', 'à¦¶à¦¿à¦°à§‹à¦¨à¦¾à¦®')}
+            {tr('TITLE', 'শিরোনাম')}
           </div>
           <input
             style={{
@@ -183,18 +183,18 @@ export default function Remind() {
             }}
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder={tr('e.g. Blue pill after breakfast', 'à¦¯à§‡à¦®à¦¨: à¦¸à¦•à¦¾à¦²à§‡à¦° à¦“à¦·à§à¦§')}
+            placeholder={tr('e.g. Blue pill after breakfast', 'যেমন: সকালের ওষুধ')}
           />
         </div>
 
-        {/* â”€â”€ Schedule card â”€â”€ */}
+        {/* ── Schedule card ── */}
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 18, overflow: 'hidden' }}>
           {/* Recurring toggle */}
           <div style={{ padding: 14, borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center' }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('RECURRING', 'à¦ªà§à¦¨à¦°à¦¾à¦¬à§ƒà¦¤à§à¦¤à¦¿')}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('RECURRING', 'পুনরাবৃত্তি')}</div>
               <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2, color: 'var(--color-ink)' }}>
-                {recurring ? tr('Every day', 'à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨') : tr('One time', 'à¦à¦•à¦¬à¦¾à¦°')}
+                {recurring ? tr('Every day', 'প্রতিদিন') : tr('One time', 'একবার')}
               </div>
             </div>
             <button
@@ -215,7 +215,7 @@ export default function Remind() {
           {/* Time + Date */}
           <div style={{ padding: 14, display: 'flex', gap: 14 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('TIME', 'à¦¸à¦®à¦¯à¦¼')}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('TIME', 'সময়')}</div>
               <input
                 type="time"
                 value={time}
@@ -229,7 +229,7 @@ export default function Remind() {
             </div>
             {!recurring && (
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('DATE', 'à¦¤à¦¾à¦°à¦¿à¦–')}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600 }}>{tr('DATE', 'তারিখ')}</div>
                 <input
                   type="date"
                   value={date}
@@ -245,21 +245,21 @@ export default function Remind() {
           </div>
         </div>
 
-        {/* â”€â”€ Delivery â”€â”€ */}
+        {/* ── Delivery ── */}
         <div>
           <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }}>
-            {tr('DELIVERY', 'à¦ªà¦¾à¦ à¦¾à¦¨à§‹à¦° à¦ªà¦¦à§à¦§à¦¤à¦¿')}
+            {tr('DELIVERY', 'পাঠানোর পদ্ধতি')}
           </div>
           <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 18, overflow: 'hidden' }}>
-            <ToggleRow label="Push notification"          labelBn="à¦ªà§à¦¶ à¦¨à§‹à¦Ÿà¦¿à¦«à¦¿à¦•à§‡à¦¶à¦¨"             val={notifyPush}  set={setNotifyPush} />
-            <ToggleRow label="Voice in morning briefing"  labelBn="à¦¸à¦•à¦¾à¦²à§‡à¦° à¦¸à¦¾à¦°à¦¸à¦‚à¦•à§à¦·à§‡à¦ªà§‡ à¦­à¦¯à¦¼à§‡à¦¸"   val={notifyVoice} set={setNotifyVoice} />
+            <ToggleRow label="Push notification"          labelBn="পুশ নোটিফিকেশন"             val={notifyPush}  set={setNotifyPush} />
+            <ToggleRow label="Voice in morning briefing"  labelBn="সকালের সারসংক্ষেপে ভয়েস"   val={notifyVoice} set={setNotifyVoice} />
             <div style={{ borderBottom: 'none' }}>
-              <ToggleRow label="SMS if missed"            labelBn="à¦®à¦¿à¦¸ à¦¹à¦²à§‡ SMS"                val={notifySms}   set={setNotifySms} />
+              <ToggleRow label="SMS if missed"            labelBn="মিস হলে SMS"                val={notifySms}   set={setNotifySms} />
             </div>
           </div>
         </div>
 
-        {/* â”€â”€ Save button â”€â”€ */}
+        {/* ── Save button ── */}
         <button
           onClick={save}
           disabled={!title.trim() || saving || !selectedPatient}
@@ -276,16 +276,16 @@ export default function Remind() {
           {saving
             ? <span style={{ width: 20, height: 20, borderRadius: 10, border: '2.5px solid #fff', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite', display: 'block' }} />
             : saved
-              ? <><Icon name="check" size={18} color="var(--color-accent-dark)" /> {tr('Reminder saved!', 'à¦…à¦¨à§à¦¸à§à¦®à¦¾à¦°à¦• à¦¸à¦‚à¦°à¦•à§à¦·à¦¿à¦¤!')}</>
-              : <><Icon name="bell" size={18} color="#fff" /> {tr('Save reminder', 'à¦…à¦¨à§à¦¸à§à¦®à¦¾à¦°à¦• à¦¸à¦‚à¦°à¦•à§à¦·à¦£ à¦•à¦°à§à¦¨')}</>
+              ? <><Icon name="check" size={18} color="var(--color-accent-dark)" /> {tr('Reminder saved!', 'অনুস্মারক সংরক্ষিত!')}</>
+              : <><Icon name="bell" size={18} color="#fff" /> {tr('Save reminder', 'অনুস্মারক সংরক্ষণ করুন')}</>
           }
         </button>
 
-        {/* â”€â”€ Recent reminders â”€â”€ */}
+        {/* ── Recent reminders ── */}
         {reminders.length > 0 && (
           <div>
             <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 10 }}>
-              {tr('RECENT REMINDERS', 'à¦¸à¦¾à¦®à§à¦ªà§à¦°à¦¤à¦¿à¦• à¦…à¦¨à§à¦¸à§à¦®à¦¾à¦°à¦•')}
+              {tr('RECENT REMINDERS', 'সাম্প্রতিক অনুস্মারক')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {reminders.map(r => {
@@ -307,7 +307,7 @@ export default function Remind() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-ink)' }}>{r.title}</div>
                       <div style={{ fontSize: 12, color: 'var(--color-ink-mute)', marginTop: 2 }}>
-                        {r.time} Â· {r.is_recurring ? tr('Daily', 'à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨') : r.date}
+                        {r.time} · {r.is_recurring ? tr('Daily', 'প্রতিদিন') : r.date}
                       </div>
                     </div>
                     <button onClick={() => deleteReminder(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-ink-mute)' }}>

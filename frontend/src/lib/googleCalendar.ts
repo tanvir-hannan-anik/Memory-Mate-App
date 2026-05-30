@@ -1,4 +1,4 @@
-﻿const API_KEY   = import.meta.env.VITE_GOOGLE_API_KEY as string
+const API_KEY   = import.meta.env.VITE_GOOGLE_API_KEY as string
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string  // set after OAuth setup
 const SCOPES    = 'https://www.googleapis.com/auth/calendar.events'
 
@@ -7,7 +7,7 @@ let tokenClient: any = null
 let gapiLoaded  = false
 let gisLoaded   = false
 
-// â”€â”€ Load GAPI + GIS scripts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Load GAPI + GIS scripts ───────────────────────────────────
 function loadScript(src: string): Promise<void> {
   return new Promise((res, rej) => {
     if (document.querySelector(`script[src="${src}"]`)) { res(); return }
@@ -43,7 +43,7 @@ export async function initGoogleCalendar(): Promise<void> {
   }
 }
 
-// â”€â”€ Request calendar access â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Request calendar access ───────────────────────────────────
 export function requestCalendarAccess(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (!tokenClient) { reject(new Error('Google Calendar not initialised. Set VITE_GOOGLE_CLIENT_ID.')); return }
@@ -59,7 +59,7 @@ export function requestCalendarAccess(): Promise<void> {
   })
 }
 
-// â”€â”€ Create calendar event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Create calendar event ─────────────────────────────────────
 export async function createCalendarEvent(event: {
   title: string
   date: string       // 'YYYY-MM-DD'
@@ -94,7 +94,7 @@ export async function createCalendarEvent(event: {
   }
 }
 
-// â”€â”€ List upcoming events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── List upcoming events ──────────────────────────────────────
 export async function listCalendarEvents(maxResults = 10): Promise<CalendarEvent[]> {
   try {
     const resp = await (window as any).gapi.client.calendar.events.list({
@@ -115,7 +115,7 @@ export async function listCalendarEvents(maxResults = 10): Promise<CalendarEvent
   }
 }
 
-// â”€â”€ Delete calendar event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Delete calendar event ─────────────────────────────────────
 export async function deleteCalendarEvent(eventId: string): Promise<void> {
   await (window as any).gapi.client.calendar.events.delete({ calendarId: 'primary', eventId })
 }
@@ -127,7 +127,7 @@ export interface CalendarEvent {
   time?: string
 }
 
-// Build a Google Calendar event URL â€” no OAuth or API key required.
+// Build a Google Calendar event URL — no OAuth or API key required.
 // Opens Google Calendar in a new tab with the event pre-filled.
 export function buildCalendarUrl(event: {
   title: string

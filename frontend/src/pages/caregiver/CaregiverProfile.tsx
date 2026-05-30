@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLang } from '@/contexts/LangContext'
@@ -55,7 +55,7 @@ function Row({
         <div style={{ fontSize: 15, fontWeight: 600, color: danger ? 'var(--color-danger)' : 'var(--color-ink)' }}>{label}</div>
         {value && <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 1 }}>{value}</div>}
       </div>
-      {action !== undefined ? action : onClick ? <span style={{ color: 'var(--color-ink-mute)', fontSize: 20 }}>â€º</span> : null}
+      {action !== undefined ? action : onClick ? <span style={{ color: 'var(--color-ink-mute)', fontSize: 20 }}>›</span> : null}
     </div>
   )
 }
@@ -78,7 +78,7 @@ export default function CaregiverProfile() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoProgress, setPhotoProgress] = useState(0)
 
-  // Notification toggles â€" read from profile
+  // Notification toggles – read from profile
   const [notifEmergency] = useState(true) // always on, not toggleable
   const [notifSafezone, setNotifSafezone] = useState(true)
   const [notifMissed, setNotifMissed] = useState(true)
@@ -126,7 +126,7 @@ export default function CaregiverProfile() {
     try {
       const result = await fsConnectPatientByCode(profile.id, connectCode)
       if (result.success) {
-        setConnectSuccess(tr(`Connected to ${result.patientName}!`, `${result.patientName}-à¦à¦° à¦¸à¦¾à¦¥à§‡ à¦¯à§à¦•à§à¦¤ à¦¹à¦¯à¦¼à§‡à¦›à§‡!`))
+        setConnectSuccess(tr(`Connected to ${result.patientName}!`, `${result.patientName}-এর সাথে যুক্ত হয়েছে!`))
         setConnectCode('')
         await loadPatients()
         setTimeout(() => { setConnectOpen(false); setConnectSuccess('') }, 2000)
@@ -134,7 +134,7 @@ export default function CaregiverProfile() {
         setConnectError(result.error)
       }
     } catch {
-      setConnectError(tr('Something went wrong. Try again.', 'à¦•à¦¿à¦›à§ à¦à¦•à¦Ÿà¦¾ à¦ à¦¿à¦• à¦¹à¦¯à¦¼à¦¨à¦¿à¥¤ à¦†à¦¬à¦¾à¦° à¦šà§‡à¦·à§à¦Ÿà¦¾ à¦•à¦°à§à¦¨à¥¤'))
+      setConnectError(tr('Something went wrong. Try again.', 'কিছু একটা ঠিক হয়নি। আবার চেষ্টা করুন।'))
     } finally {
       setConnectLoading(false)
     }
@@ -226,14 +226,14 @@ export default function CaregiverProfile() {
         <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>
-            {tr('Profile', 'à¦ªà§à¦°à§‹à¦«à¦¾à¦‡à¦²')}
+            {tr('Profile', 'প্রোফাইল')}
           </div>
           <button onClick={startEdit} style={{
             background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)',
             color: '#fff', padding: '6px 14px', borderRadius: 16, cursor: 'pointer',
             fontSize: 13, fontWeight: 700,
           }}>
-            {tr('Edit', 'à¦à¦¡à¦¿à¦Ÿ')}
+            {tr('Edit', 'এডিট')}
           </button>
         </div>
       </div>
@@ -253,7 +253,7 @@ export default function CaregiverProfile() {
                 fontFamily: 'var(--font-display)', cursor: 'pointer',
                 position: 'relative', overflow: 'hidden',
               }}
-              title={tr('Change photo', 'à¦›à¦¬à¦¿ à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨')}
+              title={tr('Change photo', 'ছবি পরিবর্তন')}
             >
               {photoUploading ? (
                 <span style={{ fontSize: 11, fontWeight: 700 }}>{photoProgress}%</span>
@@ -279,7 +279,7 @@ export default function CaregiverProfile() {
               <div style={{ fontSize: 13, color: 'var(--color-ink-soft)' }}>{(profile as any)?.phone || profile?.email}</div>
               <div style={{ fontSize: 12, color: 'var(--color-good)', fontWeight: 700, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--color-good)', display: 'inline-block' }} />
-                {tr('Verified caregiver', 'à¦¯à¦¾à¦šà¦¾à¦‡à¦•à§ƒà¦¤ à¦•à§‡à¦¯à¦¼à¦¾à¦°à¦—à¦¿à¦­à¦¾à¦°')}
+                {tr('Verified caregiver', 'যাচাইকৃত কেয়ারগিভার')}
               </div>
             </div>
           </div>
@@ -294,11 +294,11 @@ export default function CaregiverProfile() {
             borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 14,
           }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-ink)' }}>
-              {tr('Edit profile', 'à¦ªà§à¦°à§‹à¦«à¦¾à¦‡à¦² à¦¸à¦®à§à¦ªà¦¾à¦¦à¦¨à¦¾')}
+              {tr('Edit profile', 'প্রোফাইল সম্পাদনা')}
             </div>
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Name', 'à¦¨à¦¾à¦®')}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Name', 'নাম')}</label>
               <input
                 style={{ width: '100%', background: 'var(--color-bg-warm)', border: '1.5px solid var(--color-border)', borderRadius: 10, padding: '10px 12px', fontSize: 15, color: 'var(--color-ink)', outline: 'none', fontFamily: 'var(--font-body)', boxSizing: 'border-box' }}
                 value={editName}
@@ -308,7 +308,7 @@ export default function CaregiverProfile() {
             </div>
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Phone number', 'à¦«à§‹à¦¨ à¦¨à¦®à§à¦¬à¦°')}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Phone number', 'ফোন নম্বর')}</label>
               <input
                 type="tel"
                 style={{ width: '100%', background: 'var(--color-bg-warm)', border: '1.5px solid var(--color-border)', borderRadius: 10, padding: '10px 12px', fontSize: 15, color: 'var(--color-ink)', outline: 'none', fontFamily: 'var(--font-body)', boxSizing: 'border-box' }}
@@ -319,7 +319,7 @@ export default function CaregiverProfile() {
             </div>
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Language', 'à¦­à¦¾à¦·à¦¾')}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 4 }}>{tr('Language', 'ভাষা')}</label>
               <div style={{ display: 'flex', background: 'var(--color-bg-warm)', padding: 4, borderRadius: 14, gap: 4 }}>
                 {(['en', 'bn'] as const).map(l => (
                   <button key={l} onClick={() => setEditLang(l)} style={{
@@ -329,14 +329,14 @@ export default function CaregiverProfile() {
                     padding: '10px 16px', borderRadius: 10,
                     fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14,
                   }}>
-                    {l === 'en' ? 'English' : 'à¦¬à¦¾à¦‚à¦²à¦¾'}
+                    {l === 'en' ? 'English' : 'বাংলা'}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 8 }}>{tr('Profile photo', 'à¦ªà§à¦°à§‹à¦«à¦¾à¦‡à¦² à¦›à¦¬à¦¿')}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', display: 'block', marginBottom: 8 }}>{tr('Profile photo', 'প্রোফাইল ছবি')}</label>
               <button
                 onClick={() => photoInputRef.current?.click()}
                 style={{
@@ -346,7 +346,7 @@ export default function CaregiverProfile() {
                   fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}
               >
-                {photoUploading ? `${tr('Uploading', 'à¦†à¦ªà¦²à§‹à¦¡ à¦¹à¦šà§à¦›à§‡')} ${photoProgress}%` : tr('ðŸ"·  Choose photo from device', 'ðŸ"·  à¦¡à¦¿à¦­à¦¾à¦‡à¦¸ à¦¥à§‡à¦•à§‡ à¦›à¦¬à¦¿ à¦¬à§‡à¦›à§‡ à¦¨à¦¾à¦"')}
+                {photoUploading ? `${tr('Uploading', 'আপলোড হচ্ছে')} ${photoProgress}%` : tr('📷  Choose photo from device', '📷  ডিভাইস থেকে ছবি বেছে নাও')}
               </button>
             </div>
 
@@ -356,7 +356,7 @@ export default function CaregiverProfile() {
                 background: 'transparent', border: '1.5px solid var(--color-border)',
                 color: 'var(--color-ink-soft)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
               }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <button onClick={saveEdit} disabled={saving} style={{
                 flex: 1, minHeight: 48, borderRadius: 14,
@@ -366,7 +366,7 @@ export default function CaregiverProfile() {
               }}>
                 {saving
                   ? <span style={{ width: 18, height: 18, borderRadius: 9, border: '2.5px solid #fff', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
-                  : tr('Save', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£')}
+                  : tr('Save', 'সংরক্ষণ')}
               </button>
             </div>
           </div>
@@ -382,15 +382,15 @@ export default function CaregiverProfile() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-ink)' }}>
-                {lang === 'bn' ? 'à¦­à¦¾à¦·à¦¾ / Language' : 'Language / à¦­à¦¾à¦·à¦¾'}
+                {lang === 'bn' ? 'ভাষা / Language' : 'Language / ভাষা'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--color-ink-soft)' }}>
-                {lang === 'bn' ? 'à¦ªà§à¦°à§‹ à¦…à§à¦¯à¦¾à¦ªà§‡à¦° à¦­à¦¾à¦·à¦¾ à¦¬à¦¦à¦²à¦¾à¦"' : 'Switch the whole app language'}
+                {lang === 'bn' ? 'পুরো অ্যাপের ভাষা বদলাও' : 'Switch the whole app language'}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', background: 'var(--color-bg-warm)', padding: 4, borderRadius: 14, gap: 4 }}>
-            {[{ v: 'en', label: 'English', sub: 'ENGLISH' }, { v: 'bn', label: 'à¦¬à¦¾à¦‚à¦²à¦¾', sub: 'BANGLA' }].map(opt => (
+            {[{ v: 'en', label: 'English', sub: 'ENGLISH' }, { v: 'bn', label: 'বাংলা', sub: 'BANGLA' }].map(opt => (
               <button key={opt.v} onClick={() => handleLangSwitch(opt.v as 'en' | 'bn')} style={{
                 flex: 1, background: lang === opt.v ? 'var(--color-accent)' : 'transparent',
                 color: lang === opt.v ? '#fff' : 'var(--color-ink-soft)',
@@ -411,7 +411,7 @@ export default function CaregiverProfile() {
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1 }}>
-            {tr('PATIENTS I CARE FOR', 'à¦¯à¦¾à¦¦à§‡à¦° à¦†à¦®à¦¿ à¦ªà¦°à¦¿à¦šà¦°à§à¦¯à¦¾ à¦•à¦°à¦¿')}
+            {tr('PATIENTS I CARE FOR', 'যাদের আমি পরিচর্যা করি')}
           </div>
           <button
             onClick={() => { setConnectOpen(true); setConnectCode(''); setConnectError(''); setConnectSuccess('') }}
@@ -422,7 +422,7 @@ export default function CaregiverProfile() {
             }}
           >
             <Icon name="plus" size={14} color="#fff" />
-            {tr('Add patient', 'à¦°à§‹à¦—à§€ à¦¯à§‹à¦—')}
+            {tr('Add patient', 'রোগী যোগ')}
           </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -431,12 +431,12 @@ export default function CaregiverProfile() {
               background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
               borderRadius: 16, padding: 20, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>ðŸ§'â€âš•ï¸</div>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🧒‍⚕️</div>
               <div style={{ color: 'var(--color-ink)', fontSize: 15, fontWeight: 700 }}>
-                {tr('No patients connected yet', 'à¦à¦–à¦¨à§‹ à¦•à§‹à¦¨à§‹ à¦°à§‹à¦—à§€ à¦¯à§à¦•à§à¦¤ à¦¨à§‡à¦‡')}
+                {tr('No patients connected yet', 'এখনো কোনো রোগী যুক্ত নেই')}
               </div>
               <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 6 }}>
-                {tr('Ask your patient for their 6-digit code, then tap "Add patient" above.', 'à¦°à§‹à¦—à§€à¦° à§¬ à¦¸à¦‚à¦–à§à¦¯à¦¾à¦° à¦•à§‹à¦¡ à¦¨à¦¿à¦¨, à¦¤à¦¾à¦°à¦ªà¦° à¦‰à¦ªà¦°à§‡ "à¦°à§‹à¦—à§€ à¦¯à§‹à¦—" à¦Ÿà§à¦¯à¦¾à¦ª à¦•à¦°à§à¦¨à¥¤')}
+                {tr('Ask your patient for their 6-digit code, then tap "Add patient" above.', 'রোগীর ৬ সংখ্যার কোড নিন, তারপর উপরে "রোগী যোগ" ট্যাপ করুন।')}
               </div>
             </div>
           ) : (
@@ -459,14 +459,14 @@ export default function CaregiverProfile() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--color-ink)' }}>{cp.patient?.name}</div>
                     <div style={{ fontSize: 13, color: 'var(--color-ink-soft)' }}>
-                      {(cp.patient as any)?.age ? `${(cp.patient as any).age} yrs Â· ` : ''}{tr('Patient', 'à¦°à§‹à¦—à§€')}
+                      {(cp.patient as any)?.age ? `${(cp.patient as any).age} yrs · ` : ''}{tr('Patient', 'রোগী')}
                     </div>
                   </div>
                   <div style={{
                     fontSize: 11, fontWeight: 700,
                     background: 'var(--color-good-soft)', color: 'var(--color-good)',
                     padding: '4px 10px', borderRadius: 10,
-                  }}>â— {tr('Active', 'à¦¸à¦•à§à¦°à¦¿à¦¯à¦¼')}</div>
+                  }}>● {tr('Active', 'সক্রিয়')}</div>
                 </div>
               </div>
             ))
@@ -477,31 +477,31 @@ export default function CaregiverProfile() {
       {/* Notifications */}
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
-          {tr('NOTIFICATIONS', 'à¦¨à§‹à¦Ÿà¦¿à¦«à¦¿à¦•à§‡à¦¶à¦¨')}
+          {tr('NOTIFICATIONS', 'নোটিফিকেশন')}
         </div>
         <div style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 16, overflow: 'hidden' }}>
           <Row
             icon="bell"
-            label={tr('Emergency alerts', 'à¦œà¦°à§à¦°à¦¿ à¦¸à¦¤à¦°à§à¦•à¦¤à¦¾')}
-            value={tr('Always on', 'à¦¸à¦¬à¦¸à¦®à¦¯à¦¼ à¦šà¦¾à¦²à§')}
+            label={tr('Emergency alerts', 'জরুরি সতর্কতা')}
+            value={tr('Always on', 'সবসময় চালু')}
             action={<Toggle on={notifEmergency} onToggle={() => {}} disabled />}
           />
           <Row
             icon="map"
-            label={tr('Safe zone alerts', 'à¦¨à¦¿à¦°à¦¾à¦ªà¦¦ à¦…à¦žà§à¦šà¦²à§‡à¦° à¦¸à¦¤à¦°à§à¦•à¦¤à¦¾')}
-            value={notifSafezone ? tr('On Â· 500m radius', 'à¦šà¦¾à¦²à§ Â· à§«à§¦à§¦ à¦®à¦¿à¦Ÿà¦¾à¦°') : tr('Off', 'à¦¬à¦¨à§à¦§')}
+            label={tr('Safe zone alerts', 'নিরাপদ অঞ্চলের সতর্কতা')}
+            value={notifSafezone ? tr('On · 500m radius', 'চালু · ৫০০ মিটার') : tr('Off', 'বন্ধ')}
             action={<Toggle on={notifSafezone} onToggle={toggleSafezone} />}
           />
           <Row
             icon="walk"
-            label={tr('Missed reminders', 'à¦®à¦¿à¦¸ à¦¹à¦"à¦¯à¦¼à¦¾ à¦°à¦¿à¦®à¦¾à¦‡à¦¨à§à¦¡à¦¾à¦°')}
-            value={notifMissed ? tr('Alert after 15 min', 'à§§à§« à¦®à¦¿à¦¨à¦¿à¦Ÿ à¦ªà¦°à§‡ à¦œà¦¾à¦¨à¦¾à¦"') : tr('Off', 'à¦¬à¦¨à§à¦§')}
+            label={tr('Missed reminders', 'মিস হওয়া রিমাইন্ডার')}
+            value={notifMissed ? tr('Alert after 15 min', '১৫ মিনিট পরে জানাও') : tr('Off', 'বন্ধ')}
             action={<Toggle on={notifMissed} onToggle={toggleMissed} />}
           />
           <Row
             icon="heart"
-            label={tr('Mood drops', 'à¦®à§‡à¦œà¦¾à¦œ à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨')}
-            value={notifMood ? tr('On Â· 3+ days low', 'à¦šà¦¾à¦²à§ Â· à§©+ à¦¦à¦¿à¦¨ à¦•à¦®') : tr('Off', 'à¦¬à¦¨à§à¦§')}
+            label={tr('Mood drops', 'মেজাজ পরিবর্তন')}
+            value={notifMood ? tr('On · 3+ days low', 'চালু · ৩+ দিন কম') : tr('Off', 'বন্ধ')}
             action={<Toggle on={notifMood} onToggle={toggleMood} />}
           />
         </div>
@@ -510,33 +510,33 @@ export default function CaregiverProfile() {
       {/* Account */}
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
-          {tr('ACCOUNT', 'à¦…à§à¦¯à¦¾à¦•à¦¾à¦‰à¦¨à§à¦Ÿ')}
+          {tr('ACCOUNT', 'অ্যাকাউন্ট')}
         </div>
         <div style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 16, overflow: 'hidden' }}>
           <Row
             icon="shield"
-            label={tr('Privacy & data', 'à¦—à§‹à¦ªà¦¨à§€à¦¯à¦¼à¦¤à¦¾ à¦" à¦¡à§‡à¦Ÿà¦¾')}
-            value={tr('End-to-end encrypted', 'à¦à¦¨à§à¦¡-à¦Ÿà§-à¦à¦¨à§à¦¡ à¦à¦¨à¦•à§à¦°à¦¿à¦ªà§à¦Ÿà§‡à¦¡')}
-            onClick={() => alert(tr('All data is encrypted and private.', 'à¦¸à¦¬ à¦¡à§‡à¦Ÿà¦¾ à¦à¦¨à¦•à§à¦°à¦¿à¦ªà§à¦Ÿà§‡à¦¡ à¦à¦¬à¦‚ à¦¬à§à¦¯à¦•à§à¦¤à¦¿à¦—à¦¤à¥¤'))}
+            label={tr('Privacy & data', 'গোপনীয়তা ও ডেটা')}
+            value={tr('End-to-end encrypted', 'এন্ড-টু-এন্ড এনক্রিপ্টেড')}
+            onClick={() => alert(tr('All data is encrypted and private.', 'সব ডেটা এনক্রিপ্টেড এবং ব্যক্তিগত।'))}
           />
           <Row
             icon="sparkle"
-            label={tr('Help & support', 'à¦¸à¦¾à¦¹à¦¾à¦¯à§à¦¯ à¦" à¦¸à¦¹à¦¾à¦¯à¦¼à¦¤à¦¾')}
-            value={tr('FAQs and guides', 'à¦ªà§à¦°à¦¶à§à¦¨à§‹à¦¤à§à¦¤à¦° à¦" à¦—à¦¾à¦‡à¦¡')}
-            onClick={() => alert(tr('Help centre coming soon!', 'à¦¸à¦¾à¦¹à¦¾à¦¯à§à¦¯ à¦•à§‡à¦¨à§à¦¦à§à¦° à¦¶à§€à¦˜à§à¦°à¦‡ à¦†à¦¸à¦›à§‡!'))}
+            label={tr('Help & support', 'সাহায্য ও সহায়তা')}
+            value={tr('FAQs and guides', 'প্রশ্নোত্তর ও গাইড')}
+            onClick={() => alert(tr('Help centre coming soon!', 'সাহায্য কেন্দ্র শীঘ্রই আসছে!'))}
           />
           <Row
             icon="log-out"
-            label={tr('Sign out', 'à¦¸à¦¾à¦‡à¦¨ à¦†à¦‰à¦Ÿ')}
+            label={tr('Sign out', 'সাইন আউট')}
             danger
             onClick={() => setConfirmSignOut(true)}
-            action={<span style={{ color: 'var(--color-danger)', fontSize: 20 }}>â€º</span>}
+            action={<span style={{ color: 'var(--color-danger)', fontSize: 20 }}>›</span>}
           />
         </div>
       </div>
 
       <div style={{ padding: 20, textAlign: 'center', color: 'var(--color-ink-mute)', fontSize: 12 }}>
-        Memory Mate v1.0 Â· Made with care
+        Memory Mate v1.0 · Made with care
       </div>
 
       {/* Connect patient sheet */}
@@ -557,10 +557,10 @@ export default function CaregiverProfile() {
               </div>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--color-ink)' }}>
-                  {tr('Connect a patient', 'à¦°à§‹à¦—à§€ à¦¯à§‹à¦— à¦•à¦°à§à¦¨')}
+                  {tr('Connect a patient', 'রোগী যোগ করুন')}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 2 }}>
-                  {tr('Enter the 6-digit code from the patient\'s profile', 'à¦°à§‹à¦—à§€à¦° à¦ªà§à¦°à§‹à¦«à¦¾à¦‡à¦² à¦¥à§‡à¦•à§‡ à§¬ à¦¸à¦‚à¦–à§à¦¯à¦¾à¦° à¦•à§‹à¦¡ à¦¦à¦¿à¦¨')}
+                  {tr('Enter the 6-digit code from the patient\'s profile', 'রোগীর প্রোফাইল থেকে ৬ সংখ্যার কোড দিন')}
                 </div>
               </div>
             </div>
@@ -568,7 +568,7 @@ export default function CaregiverProfile() {
             {/* Code input */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-ink-mute)', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
-                {tr('PATIENT CAREGIVER CODE', 'à¦°à§‹à¦—à§€à¦° à¦•à§‡à¦¯à¦¼à¦¾à¦°à¦—à¦¿à¦­à¦¾à¦° à¦•à§‹à¦¡')}
+                {tr('PATIENT CAREGIVER CODE', 'রোগীর কেয়ারগিভার কোড')}
               </label>
               <input
                 type="text"
@@ -609,7 +609,7 @@ export default function CaregiverProfile() {
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
               }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <button
                 onClick={handleConnect}
@@ -625,7 +625,7 @@ export default function CaregiverProfile() {
               >
                 {connectLoading
                   ? <span style={{ width: 20, height: 20, borderRadius: 10, border: '2.5px solid #fff', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
-                  : tr('Connect', 'à¦¯à§à¦•à§à¦¤ à¦•à¦°à§à¦¨')}
+                  : tr('Connect', 'যুক্ত করুন')}
               </button>
             </div>
           </div>
@@ -646,10 +646,10 @@ export default function CaregiverProfile() {
               <Icon name="log-out" size={28} color="var(--color-danger)" />
             </div>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--color-ink)', margin: '0 0 6px' }}>
-              {tr('Sign out?', 'à¦¸à¦¾à¦‡à¦¨ à¦†à¦‰à¦Ÿ à¦•à¦°à¦¬à§‡à¦¨?')}
+              {tr('Sign out?', 'সাইন আউট করবেন?')}
             </p>
             <p style={{ fontSize: 14, color: 'var(--color-ink-soft)', margin: '0 0 20px' }}>
-              {tr('You will be taken to the welcome screen.', 'à¦†à¦ªà¦¨à¦¾à¦•à§‡ à¦¸à§à¦¬à¦¾à¦—à¦¤ à¦ªà§ƒà¦·à§à¦ à¦¾à¦¯à¦¼ à¦¨à¦¿à¦¯à¦¼à§‡ à¦¯à¦¾à¦"à¦¯à¦¼à¦¾ à¦¹à¦¬à§‡à¥¤')}
+              {tr('You will be taken to the welcome screen.', 'আপনাকে স্বাগত পৃষ্ঠায় নিয়ে যাওয়া হবে।')}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <button onClick={() => setConfirmSignOut(false)} style={{
@@ -657,14 +657,14 @@ export default function CaregiverProfile() {
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
               }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <button onClick={handleSignOut} style={{
                 background: 'var(--color-danger)', color: '#fff', border: 'none',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
               }}>
-                {tr('Sign out', 'à¦¸à¦¾à¦‡à¦¨ à¦†à¦‰à¦Ÿ')}
+                {tr('Sign out', 'সাইন আউট')}
               </button>
             </div>
           </div>

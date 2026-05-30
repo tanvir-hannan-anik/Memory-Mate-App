@@ -117,7 +117,7 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: calc(80px + var(--sab));
+  padding-bottom: calc(94px + var(--sab));
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -135,7 +135,7 @@ body {
 .tab-bar {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  height: calc(72px + var(--sab));
+  height: calc(84px + var(--sab));
   padding-bottom: var(--sab);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);

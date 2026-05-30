@@ -1,4 +1,4 @@
-﻿import { Component, ReactNode, useEffect } from 'react'
+import { Component, ReactNode, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LangProvider, useLang } from '@/contexts/LangContext'
@@ -34,7 +34,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-// Syncs profile.language from Firestore â†’ LangContext + localStorage on every login/refresh
+// Syncs profile.language from Firestore → LangContext + localStorage on every login/refresh
 function LangSyncer() {
   const { profile } = useAuth()
   const { setLang } = useLang()

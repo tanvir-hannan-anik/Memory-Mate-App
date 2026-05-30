@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLang } from '@/contexts/LangContext'
 import { Plan, PlanType, CaregiverPatient } from '@/types'
@@ -6,18 +6,19 @@ import Icon from '@/components/ui/Icon'
 import Avatar from '@/components/ui/Avatar'
 import { format, addDays, startOfDay } from 'date-fns'
 import { db, fsListenPlans, fsAddPlan, fsUpdatePlan, fsDeletePlan } from '@/lib/firebase'
-import { collection, query, where, getDocs, getDoc, doc as fsDoc } from 'firebase/firestore'
-import { fmtDayShort, fmtMonthDay, fmtDayFull } from '@/lib/dateLocale'
+import { collection, query, where, getDocs, getDoc, doc as fsDoc, onSnapshot } from 'firebase/firestore'
+import { fmtDayShort, fmtMonthDay, fmtDayFull, fmtMonthShort, fmtDayNum, toBnDigits } from '@/lib/dateLocale'
 import { buildCalendarUrl } from '@/lib/googleCalendar'
+import PlanCalendarModal from '@/components/ui/PlanCalendarModal'
 
 function isoDate(d: Date) { return format(d, 'yyyy-MM-dd') }
 
 function fmtDayLabel(d: Date, today: Date, tr: (en: string, bn: string) => string, lang: 'en' | 'bn') {
   const todayStr = isoDate(today)
   const ds = isoDate(d)
-  if (ds === todayStr) return tr('Today', 'à¦†à¦œ')
-  if (ds === isoDate(addDays(today, 1))) return tr('Tomorrow', 'à¦†à¦—à¦¾à¦®à§€à¦•à¦¾à¦²')
-  if (ds === isoDate(addDays(today, -1))) return tr('Yesterday', 'à¦—à¦¤à¦•à¦¾à¦²')
+  if (ds === todayStr) return tr('Today', 'আজ')
+  if (ds === isoDate(addDays(today, 1))) return tr('Tomorrow', 'আগামীকাল')
+  if (ds === isoDate(addDays(today, -1))) return tr('Yesterday', 'গতকাল')
   return `${fmtDayFull(d, lang)}, ${fmtMonthDay(d, lang)}`
 }
 
@@ -27,11 +28,11 @@ const TYPE_ICONS: Record<PlanType, string> = {
 }
 
 const PLAN_TYPES = [
-  { v: 'medicine'    as PlanType, en: 'Medicine',    bn: 'à¦"à¦·à§à¦§' },
-  { v: 'call'        as PlanType, en: 'Call',         bn: 'à¦«à§‹à¦¨' },
-  { v: 'visit'       as PlanType, en: 'Visit',        bn: 'à¦¦à§‡à¦–à¦¾' },
-  { v: 'task'        as PlanType, en: 'Task',         bn: 'à¦•à¦¾à¦œ' },
-  { v: 'appointment' as PlanType, en: 'Appointment',  bn: 'à¦…à§à¦¯à¦¾à¦ªà¦¯à¦¼à§‡à¦¨à§à¦Ÿà¦®à§‡à¦¨à§à¦Ÿ' },
+  { v: 'medicine'    as PlanType, en: 'Medicine',    bn: 'ওষুধ' },
+  { v: 'call'        as PlanType, en: 'Call',         bn: 'ফোন' },
+  { v: 'visit'       as PlanType, en: 'Visit',        bn: 'দেখা' },
+  { v: 'task'        as PlanType, en: 'Task',         bn: 'কাজ' },
+  { v: 'appointment' as PlanType, en: 'Appointment',  bn: 'অ্যাপয়েন্টমেন্ট' },
 ]
 
 const QUICK_TIMES = ['7:00 AM', '8:30 AM', '11:00 AM', '1:00 PM', '4:00 PM', '8:00 PM']
@@ -51,6 +52,9 @@ export default function Plans() {
   const [showAdd, setShowAdd] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [planDatesMap, setPlanDatesMap] = useState<Record<string, string[]>>({})
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calViewDate, setCalViewDate] = useState(today)
 
   // Add-form state
   const [newTitle, setNewTitle] = useState('')
@@ -63,7 +67,7 @@ export default function Plans() {
   const dateStr = isoDate(selectedDate)
   const todayStr = isoDate(today)
 
-  // â"€â"€ Load patients â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Load patients ─────────────────────────────────────────────
   useEffect(() => {
     if (!profile) return
     async function load() {
@@ -83,7 +87,7 @@ export default function Plans() {
     load()
   }, [profile])
 
-  // â"€â"€ Plans listener â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Plans listener ────────────────────────────────────────────
   useEffect(() => {
     if (!selectedPatient) return
     const unsub = fsListenPlans(
@@ -94,7 +98,27 @@ export default function Plans() {
     return unsub
   }, [selectedPatient, dateStr])
 
-  // â"€â"€ Plan CRUD â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ── Track all plan dates for selected patient (calendar dots) ────────
+  useEffect(() => {
+    if (!selectedPatient) return
+    const q = query(
+      collection(db, 'plans'),
+      where('patientId', '==', selectedPatient.patient_id)
+    )
+    const unsub = onSnapshot(q, snap => {
+      const map: Record<string, string[]> = {}
+      snap.docs.forEach(d => {
+        const date = d.data().date as string
+        const type = (d.data().type as string) || 'task'
+        if (!map[date]) map[date] = []
+        if (!map[date].includes(type)) map[date].push(type)
+      })
+      setPlanDatesMap(map)
+    }, err => console.warn('planDatesMap error:', err.message))
+    return unsub
+  }, [selectedPatient])
+
+  // ── Plan CRUD ─────────────────────────────────────────────────
   async function addPlan() {
     if (!selectedPatient || !newTitle.trim()) return
     setSaving(true)
@@ -113,8 +137,9 @@ export default function Plans() {
   async function deletePlan(id: string) { await fsDeletePlan(id); setConfirmDelete(null) }
 
   const sorted = [...plans].sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+  const isPastDate = isoDate(selectedDate) < todayStr
 
-  const patientName = selectedPatient?.patient?.name || tr('Patient', 'à¦°à§‹à¦—à§€')
+  const patientName = selectedPatient?.patient?.name || tr('Patient', 'রোগী')
 
   return (
     <div style={{
@@ -123,12 +148,12 @@ export default function Plans() {
       overflow: 'hidden',
     }}>
 
-      {/* â"€â"€ Header â"€â"€ */}
+      {/* ── Header ── */}
       <div style={{ padding: '12px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, letterSpacing: 1.5, color: 'var(--color-ink-mute)', fontWeight: 700 }}>
-              {tr('PLANS FOR', 'à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾')}
+              {tr('PLANS FOR', 'পরিকল্পনা')}
             </div>
             <h1 style={{
               fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800,
@@ -137,27 +162,43 @@ export default function Plans() {
               {fmtDayLabel(selectedDate, today, tr, lang)}
             </h1>
             <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 2 }}>
-              {sorted.length} {tr(sorted.length === 1 ? 'event' : 'events', 'à¦Ÿà¦¿ à¦‡à¦­à§‡à¦¨à§à¦Ÿ')}
-              {' Â· '}{sorted.filter(p => p.is_done).length} {tr('done', 'à¦¹à¦¯à¦¼à§‡ à¦—à§‡à¦›à§‡')}
+              {lang === 'bn' ? toBnDigits(sorted.length) : sorted.length} {tr(sorted.length === 1 ? 'event' : 'events', 'টি ইভেন্ট')}
+              {' · '}{lang === 'bn' ? toBnDigits(sorted.filter(p => p.is_done).length) : sorted.filter(p => p.is_done).length} {tr('done', 'হয়ে গেছে')}
             </div>
           </div>
-          <button
-            onClick={() => selectedPatient && setShowAdd(true)}
-            disabled={!selectedPatient}
-            style={{
-              width: 52, height: 52, borderRadius: 26,
-              background: selectedPatient ? 'var(--color-accent)' : 'var(--color-border)',
-              border: 'none', cursor: selectedPatient ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: selectedPatient ? '0 6px 16px rgba(30,110,114,0.4)' : 'none',
-            }}
-          >
-            <Icon name="plus" size={28} color="#fff" />
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Calendar picker icon */}
+            <button
+              onClick={() => setShowCalendar(true)}
+              title={tr('Open calendar', 'ক্যালেন্ডার খুলুন')}
+              style={{
+                width: 48, height: 48, borderRadius: 16,
+                background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Icon name="calendar" size={22} color="var(--color-accent)" />
+            </button>
+            {/* Add button — disabled on past dates or no patient */}
+            <button
+              onClick={() => selectedPatient && !isPastDate && setShowAdd(true)}
+              disabled={!selectedPatient || isPastDate}
+              style={{
+                width: 52, height: 52, borderRadius: 26,
+                background: !selectedPatient || isPastDate ? 'var(--color-border)' : 'var(--color-accent)',
+                border: 'none',
+                cursor: !selectedPatient || isPastDate ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: !selectedPatient || isPastDate ? 'none' : '0 6px 16px rgba(30,110,114,0.4)',
+              }}
+            >
+              <Icon name="plus" size={28} color="#fff" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* â"€â"€ Patient selector â"€â"€ */}
+      {/* ── Patient selector ── */}
       {patients.length > 1 && (
         <div style={{ padding: '10px 24px 0', flexShrink: 0 }}>
           <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', scrollbarWidth: 'none' }}>
@@ -179,7 +220,7 @@ export default function Plans() {
                   >
                     <Avatar name={p.patient?.name || '?'} size={22} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#fff' : 'var(--color-ink)' }}>
-                      {p.patient?.name || tr('Patient', 'à¦°à§‹à¦—à§€')}
+                      {p.patient?.name || tr('Patient', 'রোগী')}
                     </span>
                   </button>
                 )
@@ -189,14 +230,14 @@ export default function Plans() {
         </div>
       )}
 
-      {/* â"€â"€ Day strip â€" 30 days â"€â"€ */}
+      {/* ── Day strip – 30 days ── */}
       <div style={{ padding: '12px 24px 8px', overflowX: 'auto', whiteSpace: 'nowrap', flexShrink: 0, scrollbarWidth: 'none' }}>
         <div style={{ display: 'inline-flex', gap: 8 }}>
           {days.map(d => {
             const ds = isoDate(d)
             const active = ds === dateStr
             const isToday2 = ds === todayStr
-            const hasPlans = plans.some(p => p.date === ds)
+            const hasPlans = (planDatesMap[ds]?.length ?? 0) > 0
             return (
               <button key={ds} onClick={() => setSelectedDate(d)} style={{
                 background: active ? 'var(--color-accent)' : 'var(--color-surface)',
@@ -208,16 +249,16 @@ export default function Plans() {
                 position: 'relative', fontFamily: 'inherit',
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, letterSpacing: 0.5 }}>
-                  {format(d, 'EEE').toUpperCase()}
+                  {fmtDayShort(d, lang).toUpperCase()}
                 </div>
                 <div style={{
                   fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 800, lineHeight: 1,
                   color: active ? '#fff' : isToday2 ? 'var(--color-accent)' : 'var(--color-ink)',
                 }}>
-                  {d.getDate()}
+                  {fmtDayNum(d, lang)}
                 </div>
                 <div style={{ fontSize: 10, opacity: active ? 0.8 : 0.6 }}>
-                  {format(d, 'MMM')}
+                  {fmtMonthShort(d, lang)}
                 </div>
                 {hasPlans && (
                   <div style={{ width: 5, height: 5, borderRadius: 3, marginTop: 1, background: active ? '#fff' : 'var(--color-accent)' }} />
@@ -228,20 +269,20 @@ export default function Plans() {
         </div>
       </div>
 
-      {/* â"€â"€ No patient state â"€â"€ */}
+      {/* ── No patient state ── */}
       {!selectedPatient && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, color: 'var(--color-ink-soft)' }}>
           <Icon name="user" size={40} color="var(--color-ink-mute)" />
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, marginTop: 14, color: 'var(--color-ink)' }}>
-            {tr('No patient connected', 'à¦•à§‹à¦¨à§‹ à¦°à§‹à¦—à§€ à¦¸à¦‚à¦¯à§à¦•à§à¦¤ à¦¨à§‡à¦‡')}
+            {tr('No patient connected', 'কোনো রোগী সংযুক্ত নেই')}
           </div>
           <div style={{ fontSize: 14, marginTop: 4, textAlign: 'center' }}>
-            {tr('Connect a patient first from the Dashboard', 'à¦ªà§à¦°à¦¥à¦®à§‡ à¦¡à§à¦¯à¦¾à¦¶à¦¬à§‹à¦°à§à¦¡ à¦¥à§‡à¦•à§‡ à¦°à§‹à¦—à§€ à¦¸à¦‚à¦¯à§à¦•à§à¦¤ à¦•à¦°à§à¦¨')}
+            {tr('Connect a patient first from the Dashboard', 'প্রথমে ড্যাশবোর্ড থেকে রোগী সংযুক্ত করুন')}
           </div>
         </div>
       )}
 
-      {/* â"€â"€ Timeline â"€â"€ */}
+      {/* ── Timeline ── */}
       {selectedPatient && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 24px 120px' }}>
 
@@ -252,7 +293,7 @@ export default function Plans() {
               {patientName}
             </span>
             <span style={{ fontSize: 13, color: 'var(--color-ink-mute)', marginLeft: 2 }}>
-              Â· {format(selectedDate, 'MMMM d')}
+              · {fmtMonthDay(selectedDate, lang)}
             </span>
           </div>
 
@@ -262,10 +303,10 @@ export default function Plans() {
                 <Icon name="calendar" size={32} color="var(--color-ink-mute)" />
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--color-ink)', marginTop: 12 }}>
-                {tr('Nothing planned', 'à¦•à¦¿à¦›à§ à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾ à¦¨à§‡à¦‡')}
+                {tr('Nothing planned', 'কিছু পরিকল্পনা নেই')}
               </div>
               <div style={{ fontSize: 13, marginTop: 4 }}>
-                {tr('Tap + to add an event for this day', '+ à¦šà¦¾à¦ªà§à¦¨ à¦à¦‡ à¦¦à¦¿à¦¨à§‡à¦° à¦œà¦¨à§à¦¯ à¦‡à¦­à§‡à¦¨à§à¦Ÿ à¦¯à§‹à¦— à¦•à¦°à¦¤à§‡')}
+                {tr('Tap + to add an event for this day', '+ চাপুন এই দিনের জন্য ইভেন্ট যোগ করতে')}
               </div>
             </div>
           ) : (
@@ -281,7 +322,7 @@ export default function Plans() {
                         color: plan.is_done ? 'var(--color-ink-mute)' : 'var(--color-ink)',
                         fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
                       }}>
-                        {plan.time || 'â€"'}
+                        {plan.time || '–'}
                       </div>
                     </div>
 
@@ -328,7 +369,7 @@ export default function Plans() {
                         </div>
                         {plan.is_recurring && (
                           <div style={{ fontSize: 11, color: 'var(--color-accent)', fontWeight: 700, marginTop: 2 }}>
-                            â†º {tr('Daily', 'à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨')}
+                            ↺ {tr('Daily', 'প্রতিদিন')}
                           </div>
                         )}
                       </div>
@@ -344,14 +385,14 @@ export default function Plans() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           textDecoration: 'none', fontSize: 15, lineHeight: 1,
                         }}
-                      >ðŸ"…</a>
+                      >📅</a>
 
                       <button onClick={() => setConfirmDelete(plan.id)} style={{
                         width: 30, height: 30, borderRadius: 15,
                         background: 'transparent', border: 'none', cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: 'var(--color-ink-mute)', fontSize: 18, fontWeight: 700, flexShrink: 0,
-                      }}>Ã—</button>
+                      }}>×</button>
                     </div>
                   </div>
                 )
@@ -361,7 +402,7 @@ export default function Plans() {
         </div>
       )}
 
-      {/* â"€â"€ Add modal â"€â"€ */}
+      {/* ── Add modal ── */}
       {showAdd && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 70, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{
@@ -372,14 +413,14 @@ export default function Plans() {
             {/* Modal header */}
             <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)' }}>
               <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-ink-soft)', fontSize: 15, fontFamily: 'inherit', fontWeight: 600 }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--color-ink)', textAlign: 'center' }}>
-                  {tr('New event', 'à¦¨à¦¤à§à¦¨ à¦‡à¦­à§‡à¦¨à§à¦Ÿ')}
+                  {tr('New event', 'নতুন ইভেন্ট')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--color-ink-mute)', textAlign: 'center', marginTop: 1 }}>
-                  {patientName} Â· {format(selectedDate, 'MMM d')}
+                  {patientName} · {fmtMonthDay(selectedDate, lang)}
                 </div>
               </div>
               <button onClick={addPlan} disabled={!newTitle.trim() || saving} style={{
@@ -390,19 +431,19 @@ export default function Plans() {
               }}>
                 {saving
                   ? <span style={{ width: 16, height: 16, borderRadius: 8, border: '2px solid var(--color-accent)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
-                  : tr('Save', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£')}
+                  : tr('Save', 'সংরক্ষণ')}
               </button>
             </div>
 
             <div style={{ overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Title */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TITLE', 'à¦¶à¦¿à¦°à§‹à¦¨à¦¾à¦®')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TITLE', 'শিরোনাম')}</div>
                 <input
                   autoFocus
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder={tr('e.g. Morning medicine', 'à¦¯à§‡à¦®à¦¨ à¦¸à¦•à¦¾à¦²à§‡à¦° à¦"à¦·à§à¦§')}
+                  placeholder={tr('e.g. Morning medicine', 'যেমন সকালের ওষুধ')}
                   style={{
                     width: '100%', background: 'var(--color-surface)',
                     border: '1.5px solid var(--color-border)',
@@ -415,7 +456,7 @@ export default function Plans() {
 
               {/* Type grid */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TYPE', 'à¦§à¦°à¦¨')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TYPE', 'ধরন')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {PLAN_TYPES.map(opt => {
                     const a = newType === opt.v
@@ -438,7 +479,7 @@ export default function Plans() {
 
               {/* Day strip in modal */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('DAY', 'à¦¦à¦¿à¦¨')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('DAY', 'দিন')}</div>
                 <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', scrollbarWidth: 'none' }}>
                   <div style={{ display: 'inline-flex', gap: 8 }}>
                     {days.map(d => {
@@ -455,10 +496,10 @@ export default function Plans() {
                           fontFamily: 'inherit',
                         }}>
                           <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, letterSpacing: 0.5 }}>
-                            {format(d, 'EEE').toUpperCase()}
+                            {fmtDayShort(d, lang).toUpperCase()}
                           </div>
-                          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginTop: 2 }}>{d.getDate()}</div>
-                          <div style={{ fontSize: 10, opacity: 0.7 }}>{format(d, 'MMM')}</div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, marginTop: 2 }}>{fmtDayNum(d, lang)}</div>
+                          <div style={{ fontSize: 10, opacity: 0.7 }}>{fmtMonthShort(d, lang)}</div>
                         </button>
                       )
                     })}
@@ -468,7 +509,7 @@ export default function Plans() {
 
               {/* Quick times */}
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TIME', 'à¦¸à¦®à¦¯à¦¼')}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>{tr('TIME', 'সময়')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {QUICK_TIMES.map(qt => {
                     const a = newTime === qt
@@ -486,7 +527,7 @@ export default function Plans() {
                 <input
                   value={newTime}
                   onChange={e => setNewTime(e.target.value)}
-                  placeholder={tr('Or type a time', 'à¦…à¦¥à¦¬à¦¾ à¦¸à¦®à¦¯à¦¼ à¦²à¦¿à¦–à§à¦¨')}
+                  placeholder={tr('Or type a time', 'অথবা সময় লিখুন')}
                   style={{
                     marginTop: 8, width: '100%',
                     background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
@@ -513,7 +554,7 @@ export default function Plans() {
                 }}>
                   {newRecurring && <Icon name="check" size={14} color="#fff" />}
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>{tr('Repeat every day', 'à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨ à¦ªà§à¦¨à¦°à¦¾à¦¬à§ƒà¦¤à§à¦¤à¦¿')}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>{tr('Repeat every day', 'প্রতিদিন পুনরাবৃত্তি')}</span>
               </button>
 
               {/* Save button */}
@@ -528,14 +569,14 @@ export default function Plans() {
               }}>
                 {saving
                   ? <span style={{ width: 18, height: 18, borderRadius: 9, border: '2px solid #fff', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
-                  : tr('Save event', 'à¦¸à¦‚à¦°à¦•à§à¦·à¦£ à¦•à¦°à§à¦¨')}
+                  : tr('Save event', 'সংরক্ষণ করুন')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* â"€â"€ Delete confirm â"€â"€ */}
+      {/* ── Delete confirm ── */}
       {confirmDelete && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 60, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ width: '100%', background: 'var(--color-surface)', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, textAlign: 'center' }}>
@@ -543,25 +584,40 @@ export default function Plans() {
               <Icon name="calendar" size={28} color="var(--color-danger)" />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, margin: '12px 0 4px', color: 'var(--color-ink)' }}>
-              {tr('Delete this event?', 'à¦à¦‡ à¦‡à¦­à§‡à¦¨à§à¦Ÿ à¦®à§à¦›à¦¬à§‡?')}
+              {tr('Delete this event?', 'এই ইভেন্ট মুছবে?')}
             </h3>
             <p style={{ fontSize: 14, color: 'var(--color-ink-soft)', margin: 0 }}>
-              {tr("You can't undo this.", 'à¦à¦Ÿà¦¾ à¦«à¦¿à¦°à¦¿à¦¯à¦¼à§‡ à¦†à¦¨à¦¾ à¦¯à¦¾à¦¬à§‡ à¦¨à¦¾à¥¤')}
+              {tr("You can't undo this.", 'এটা ফিরিয়ে আনা যাবে না।')}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 18 }}>
               <button onClick={() => setConfirmDelete(null)} style={{
                 background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
-              }}>{tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}</button>
+              }}>{tr('Cancel', 'বাতিল')}</button>
               <button onClick={() => deletePlan(confirmDelete)} style={{
                 background: 'var(--color-danger)', color: '#fff', border: 'none',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: 15, fontWeight: 700,
-              }}>{tr('Delete', 'à¦®à§à¦›à§à¦¨')}</button>
+              }}>{tr('Delete', 'মুছুন')}</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Calendar picker modal ── */}
+      {showCalendar && (
+        <PlanCalendarModal
+          planDatesMap={planDatesMap}
+          calViewDate={calViewDate}
+          setCalViewDate={setCalViewDate}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          todayStr={todayStr}
+          lang={lang}
+          tr={tr}
+          onClose={() => setShowCalendar(false)}
+        />
       )}
     </div>
   )

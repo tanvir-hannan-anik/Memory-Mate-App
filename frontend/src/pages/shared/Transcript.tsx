@@ -39,14 +39,14 @@ function fmtTime(secs: number) {
 }
 
 function fmtDuration(secs: number) {
-  if (!secs) return 'â€"'
+  if (!secs) return '–'
   const m = Math.floor(secs / 60)
   const s = secs % 60
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function fmtSize(bytes: number) {
-  if (!bytes) return 'â€"'
+  if (!bytes) return '–'
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
@@ -92,7 +92,7 @@ export default function Transcript() {
           border: '2px solid var(--color-accent)', borderTopColor: 'transparent',
           borderRadius: '50%', animation: 'spin 0.8s linear infinite',
         }} />
-        <p style={{ fontSize: 14, color: 'var(--color-ink-mute)' }}>{tr('Loading transcript...', 'à¦Ÿà§à¦°à¦¾à¦¨à§à¦¸à¦•à§à¦°à¦¿à¦ªà§à¦Ÿ à¦²à§‹à¦¡ à¦¹à¦šà§à¦›à§‡...')}</p>
+        <p style={{ fontSize: 14, color: 'var(--color-ink-mute)' }}>{tr('Loading transcript...', 'ট্রান্সক্রিপ্ট লোড হচ্ছে...')}</p>
       </div>
     )
   }
@@ -100,12 +100,12 @@ export default function Transcript() {
   if (!recording) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', gap: 16 }}>
-        <p style={{ color: 'var(--color-ink-mute)' }}>{tr('Recording not found', 'à¦°à§‡à¦•à¦°à§à¦¡à¦¿à¦‚ à¦ªà¦¾à¦"à¦¯à¦¼à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿')}</p>
+        <p style={{ color: 'var(--color-ink-mute)' }}>{tr('Recording not found', 'রেকর্ডিং পাওয়া যায়নি')}</p>
         <button onClick={() => navigate(-1)} style={{
           background: 'transparent', border: '1.5px solid var(--color-accent)', color: 'var(--color-accent)',
           borderRadius: 14, padding: '10px 24px', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
         }}>
-          {tr('Go back', 'à¦«à¦¿à¦°à§‡ à¦¯à¦¾à¦¨')}
+          {tr('Go back', 'ফিরে যান')}
         </button>
       </div>
     )
@@ -149,16 +149,16 @@ export default function Transcript() {
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 20, color: 'var(--color-ink-soft)',
-        }}>â€¹</button>
+        }}>‹</button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 13, color: 'var(--color-ink-soft)', fontWeight: 600 }}>
-          {tr('Transcript', 'à¦Ÿà§à¦°à¦¾à¦¨à§à¦¸à¦•à§à¦°à¦¿à¦ªà§à¦Ÿ')}
+          {tr('Transcript', 'ট্রান্সক্রিপ্ট')}
         </div>
         <button style={{
           width: 40, height: 40, borderRadius: 20,
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 16, fontWeight: 800, color: 'var(--color-ink-soft)',
-        }}>â‹¯</button>
+        }}>⋯</button>
       </div>
 
       {/* Document header card */}
@@ -193,7 +193,7 @@ export default function Transcript() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
             {[
               { l: 'Duration', v: fmtDuration(recording.duration) },
-              { l: 'Speakers', v: speakers.length ? String(speakers.length) : 'â€"' },
+              { l: 'Speakers', v: speakers.length ? String(speakers.length) : '–' },
               { l: 'File',     v: fmtSize(recording.file_size) },
             ].map(stat => (
               <div key={stat.l} style={{ background: 'var(--color-bg-warm)', borderRadius: 10, padding: '8px 10px' }}>
@@ -213,7 +213,7 @@ export default function Transcript() {
       {speakers.length > 0 && (
         <div style={{ padding: '14px 20px 0' }}>
           <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
-            {tr('VOICES DETECTED', 'à¦¶à¦¨à¦¾à¦•à§à¦¤ à¦•à¦£à§à¦ ')}
+            {tr('VOICES DETECTED', 'শনাক্ত কণ্ঠ')}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {speakers.map((sp, idx) => {
@@ -249,7 +249,7 @@ export default function Transcript() {
       {/* Full transcript */}
       <div style={{ padding: '20px 20px 12px' }}>
         <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>
-          {tr('FULL TRANSCRIPT', 'à¦¸à¦®à§à¦ªà§‚à¦°à§à¦£ à¦Ÿà§à¦°à¦¾à¦¨à§à¦¸à¦•à§à¦°à¦¿à¦ªà§à¦Ÿ')}
+          {tr('FULL TRANSCRIPT', 'সম্পূর্ণ ট্রান্সক্রিপ্ট')}
         </div>
         <div style={{
           background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
@@ -257,7 +257,7 @@ export default function Transcript() {
         }}>
           {turns.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-ink-mute)', fontSize: 14 }}>
-              {tr('Transcript being processedâ€¦', 'à¦Ÿà§à¦°à¦¾à¦¨à§à¦¸à¦•à§à¦°à¦¿à¦ªà§à¦Ÿ à¦ªà§à¦°à¦•à§à¦°à¦¿à¦¯à¦¼à¦¾ à¦¹à¦šà§à¦›à§‡â€¦')}
+              {tr('Transcript being processed…', 'ট্রান্সক্রিপ্ট প্রক্রিয়া হচ্ছে…')}
             </div>
           ) : (
             turns.map((turn, idx) => {
@@ -305,7 +305,7 @@ export default function Transcript() {
       {/* AI Insights */}
       <div style={{ padding: '4px 20px 24px' }}>
         <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>
-          {tr('AI INSIGHTS', 'AI à¦¬à¦¿à¦¶à§à¦²à§‡à¦·à¦£')}
+          {tr('AI INSIGHTS', 'AI বিশ্লেষণ')}
         </div>
 
         {/* Summary */}
@@ -319,7 +319,7 @@ export default function Transcript() {
               display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
               fontSize: 11, color: '#0E4145', fontWeight: 700, letterSpacing: 0.5,
             }}>
-              âœ¦ {tr('SUMMARY', 'à¦¸à¦¾à¦°à¦¸à¦‚à¦•à§à¦·à§‡à¦ª')}
+              ✦ {tr('SUMMARY', 'সারসংক্ষেপ')}
             </div>
             <div style={{ fontSize: 15, color: 'var(--color-ink)', lineHeight: 1.55 }}>
               {transcript.summary}
@@ -341,15 +341,15 @@ export default function Transcript() {
                   background: 'var(--color-accent-soft)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   fontSize: 18,
-                }}>ðŸ"…</div>
+                }}>📅</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: 'var(--color-accent)', fontWeight: 700, letterSpacing: 0.5 }}>
-                    {tr('PLAN DETECTED', 'à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾ à¦¶à¦¨à¦¾à¦•à§à¦¤')}
+                    {tr('PLAN DETECTED', 'পরিকল্পনা শনাক্ত')}
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-ink)' }}>{plan.text}</div>
                   {(plan.date || plan.time) && (
                     <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 1 }}>
-                      {[plan.date, plan.time].filter(Boolean).join(' Â· ')}
+                      {[plan.date, plan.time].filter(Boolean).join(' · ')}
                     </div>
                   )}
                 </div>
@@ -363,7 +363,7 @@ export default function Transcript() {
                     fontFamily: 'var(--font-body)',
                   }}
                 >
-                  {addedPlans.has(plan.text) ? tr('âœ" Added', 'âœ" à¦¯à§‹à¦— à¦¹à¦¯à¦¼à§‡à¦›à§‡') : tr('+ Add', '+ à¦¯à§‹à¦—')}
+                  {addedPlans.has(plan.text) ? tr('✓ Added', '✓ যোগ হয়েছে') : tr('+ Add', '+ যোগ')}
                 </button>
               </div>
             ))}
@@ -378,7 +378,7 @@ export default function Transcript() {
             borderRadius: 14, padding: 14,
           }}>
             <div style={{ fontSize: 11, color: 'var(--color-ink-mute)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }}>
-              {tr('EMOTION OVER TIME', 'à¦¸à¦®à¦¯à¦¼à§‡à¦° à¦¸à¦¾à¦¥à§‡ à¦†à¦¬à§‡à¦—')}
+              {tr('EMOTION OVER TIME', 'সময়ের সাথে আবেগ')}
             </div>
             <div style={{ display: 'flex', height: 36, gap: 2, borderRadius: 6, overflow: 'hidden' }}>
               {turns.map((turn, idx) => {
@@ -415,7 +415,7 @@ export default function Transcript() {
             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
-            ðŸ"„ {tr('Export PDF', 'PDF à¦°à¦ªà§à¦¤à¦¾à¦¨à¦¿')}
+            📄 {tr('Export PDF', 'PDF রপ্তানি')}
           </button>
           <button style={{
             background: 'var(--color-accent)', color: '#fff', border: 'none',
@@ -423,7 +423,7 @@ export default function Transcript() {
             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
-            ðŸ'¬ {tr('Ask Memory Mate', 'Memory Mate-à¦•à§‡ à¦œà¦¿à¦œà§à¦žà§‡à¦¸')}
+            💬 {tr('Ask Memory Mate', 'Memory Mate-কে জিজ্ঞেস')}
           </button>
         </div>
       </div>
@@ -446,7 +446,7 @@ export default function Transcript() {
             onClick={e => e.stopPropagation()}
           >
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--color-ink)', margin: '0 0 6px' }}>
-              {tr('Add to plans?', 'à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾à¦¯à¦¼ à¦¯à§‹à¦— à¦•à¦°à¦¬à§‡à¦¨?')}
+              {tr('Add to plans?', 'পরিকল্পনায় যোগ করবেন?')}
             </p>
             <p style={{ fontSize: 14, color: 'var(--color-ink-soft)', margin: '0 0 20px' }}>{addingPlan.text}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -455,14 +455,14 @@ export default function Transcript() {
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
               }}>
-                {tr('Cancel', 'à¦¬à¦¾à¦¤à¦¿à¦²')}
+                {tr('Cancel', 'বাতিল')}
               </button>
               <button onClick={() => handleAddPlan(addingPlan)} style={{
                 background: 'var(--color-accent)', color: '#fff', border: 'none',
                 padding: '14px 0', borderRadius: 14, cursor: 'pointer',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
               }}>
-                {tr('Add plan', 'à¦ªà¦°à¦¿à¦•à¦²à§à¦ªà¦¨à¦¾ à¦¯à§‹à¦— à¦•à¦°à§à¦¨')}
+                {tr('Add plan', 'পরিকল্পনা যোগ করুন')}
               </button>
             </div>
           </div>
