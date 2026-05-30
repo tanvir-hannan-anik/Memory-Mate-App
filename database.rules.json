@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "locations": {
+      "$patientId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $patientId"
+      }
+    },
+    "alerts": {
+      "$patientId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

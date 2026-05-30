@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLang } from '@/contexts/LangContext'
 import api from '@/lib/api'
-import { uploadRecording, fsAddRecording, logAppEvent } from '@/lib/firebase'
+import { uploadRecording, fsAddRecording, fsUpdateRecording, fsAddTranscript, logAppEvent } from '@/lib/firebase'
 import Icon from '@/components/ui/Icon'
 
 
@@ -86,33 +86,59 @@ export default function Record() {
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
       const fileName = `${Date.now()}.webm`
       try {
-        const fileUrl = await uploadRecording(
-          profile?.id || 'anon', blob, fileName,
-          pct => setUploadPct(pct)
-        )
+        // Save recording doc immediately (no file_url yet — added later in background)
         setMode('processing')
         const docRef = await fsAddRecording({
           patientId: profile?.id,
           title: title || tr('Voice memo', 'ভয়েস মেমো'),
           duration: elapsed,
-          file_url: fileUrl,
           file_size: blob.size,
           mood: 'Calm',
           fileName,
+          status: 'processing',
         })
         setRecordingId(docRef.id)
-        await api.post('/recordings/transcribe', {
+
+        // Upload audio blob directly to backend as FormData (no Firebase Storage in critical path)
+        const form = new FormData()
+        form.append('audio', blob, fileName)
+        form.append('recording_id', docRef.id)
+        form.append('patient_id', profile?.id ?? '')
+        form.append('duration', String(elapsed))
+        form.append('title', title || tr('Voice memo', 'ভয়েস মেমো'))
+
+        const res = await api.post('/recordings/transcribe', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: e => setUploadPct(Math.round((e.loaded / (e.total ?? blob.size)) * 100)),
+        })
+
+        const { turns, speakers, summary, detected_plans } = res.data
+        // Write transcript to Firestore so Transcript.tsx can display it
+        await fsAddTranscript({
           recording_id: docRef.id,
-          file_url: fileUrl,
-          patient_id: profile?.id,
-          duration: elapsed,
-          title: title || tr('Voice memo', 'ভয়েস মেমো'),
+          turns: turns ?? [],
+          summary: summary ?? '',
+          detected_plans: detected_plans ?? [],
+        })
+        // Update recording document with extracted speakers and summary
+        await fsUpdateRecording(docRef.id, {
+          speakers: speakers ?? [],
+          summary: summary ?? '',
+          status: 'done',
         })
         logAppEvent('recording_saved', { duration: elapsed })
         setMode('done')
-      } catch (err) {
+
+        // Upload to Firebase Storage in background (non-blocking — just for playback later)
+        uploadRecording(profile?.id ?? 'anon', blob, fileName)
+          .then(fileUrl => fsUpdateRecording(docRef.id, { file_url: fileUrl }))
+          .catch(e => console.warn('[storage] background upload failed:', e))
+      } catch (err: unknown) {
         console.error(err)
-        alert(tr('Upload failed. Check your connection.', 'আপলোড ব্যর্থ। সংযোগ পরীক্ষা করুন।'))
+        // Extract the real detail from axios error responses
+        const axiosDetail = (err as any)?.response?.data?.detail
+        const msg = axiosDetail ?? (err instanceof Error ? err.message : String(err))
+        alert(`${tr('Transcription failed', 'ট্রান্সক্রিপশন ব্যর্থ')}: ${msg}`)
         setMode('idle')
       }
     }
@@ -166,7 +192,7 @@ export default function Record() {
           <div style={{ width: 80, height: 80, borderRadius: 40, background: 'var(--color-good-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>✅</div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 800, color: 'var(--color-ink)' }}>{tr('Recording saved!', 'রেকর্ডিং সংরক্ষিত!')}</div>
-            <div style={{ fontSize: 15, color: 'var(--color-ink-mute)', marginTop: 6 }}>{tr('Transcription in progress...', 'ট্রান্সক্রিপ্ট প্রক্রিয়া হচ্ছে...')}</div>
+            <div style={{ fontSize: 15, color: 'var(--color-ink-mute)', marginTop: 6 }}>{tr('Transcript ready. Tap below to view.', 'ট্রান্সক্রিপ্ট তৈরি। দেখতে নিচে ট্যাপ করুন।')}</div>
           </div>
           <div style={{ display: 'flex', gap: 12, width: '100%', padding: '0 4px' }}>
             <button onClick={() => { setMode('idle'); setTitle('') }} style={{
@@ -183,33 +209,39 @@ export default function Record() {
         </div>
       )}
 
-      {/* Uploading */}
-      {mode === 'uploading' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-          <div style={{ width: 80, height: 80, borderRadius: 40, border: '4px solid var(--color-accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'rotate(-90deg)' }} viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="36" fill="none" stroke="var(--color-accent)" strokeWidth="4"
-                strokeDasharray={`${uploadPct * 2.26} 226`} strokeLinecap="round" />
-            </svg>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--color-accent)' }}>{uploadPct}%</span>
-          </div>
-          <div style={{ fontSize: 15, color: 'var(--color-ink-mute)' }}>{tr('Uploading...', 'আপলোড হচ্ছে...')}</div>
-        </div>
-      )}
-
-      {/* Processing */}
-      {mode === 'processing' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 5, height: 60 }}>
-            {WAVE_HEIGHTS.map((h, i) => (
-              <div key={i} style={{
-                width: 5, height: h, borderRadius: 3, background: 'var(--color-accent)',
-                animation: `memora-wave 1.${(i * 7) % 9}s ease-in-out infinite`,
-                animationDelay: `${i * 0.07}s`,
-              }} />
-            ))}
-          </div>
-          <div style={{ fontSize: 15, color: 'var(--color-ink-mute)' }}>{tr('AI transcription running...', 'AI ট্রান্সক্রিপ্ট চলছে...')}</div>
+      {/* Processing — covers both upload-to-backend and AI transcription phases */}
+      {(mode === 'uploading' || mode === 'processing') && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>
+          {uploadPct < 100 ? (
+            /* Phase 1: sending audio to backend */
+            <>
+              <div style={{ width: 80, height: 80, borderRadius: 40, border: '4px solid var(--color-accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'rotate(-90deg)' }} viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="36" fill="none" stroke="var(--color-accent)" strokeWidth="4"
+                    strokeDasharray={`${uploadPct * 2.26} 226`} strokeLinecap="round" />
+                </svg>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--color-accent)' }}>{uploadPct}%</span>
+              </div>
+              <div style={{ fontSize: 15, color: 'var(--color-ink-mute)' }}>{tr('Sending audio…', 'অডিও পাঠানো হচ্ছে…')}</div>
+            </>
+          ) : (
+            /* Phase 2: AI transcription running on backend */
+            <>
+              <div style={{ display: 'flex', gap: 5, height: 60 }}>
+                {WAVE_HEIGHTS.map((h, i) => (
+                  <div key={i} style={{
+                    width: 5, height: h, borderRadius: 3, background: 'var(--color-accent)',
+                    animation: `memora-wave 1.${(i * 7) % 9}s ease-in-out infinite`,
+                    animationDelay: `${i * 0.07}s`,
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 15, color: 'var(--color-ink-mute)' }}>{tr('AI is transcribing…', 'AI ট্রান্সক্রিপ্ট করছে…')}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-ink-mute)', opacity: 0.6, textAlign: 'center' }}>
+                {tr('This takes 30–60 seconds', 'এটি ৩০–৬০ সেকেন্ড সময় নেয়')}
+              </div>
+            </>
+          )}
         </div>
       )}
 

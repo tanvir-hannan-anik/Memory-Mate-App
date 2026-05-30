@@ -136,6 +136,65 @@ export default function Transcript() {
     })
   }
 
+  function handleExportPDF() {
+    const rec = recording!
+    const dateStr = fmtDate(recAny)
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${rec.title}</title>
+<style>
+  body{font-family:sans-serif;max-width:720px;margin:40px auto;color:#111;line-height:1.6}
+  h1{font-size:22px;margin-bottom:4px}
+  .meta{font-size:13px;color:#666;margin-bottom:24px}
+  .section-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#888;font-weight:700;margin:20px 0 8px}
+  .speaker-chip{display:inline-block;background:#e5e7eb;border-radius:20px;padding:4px 12px;margin:0 6px 6px 0;font-size:13px}
+  .turn{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+  .avatar{width:32px;height:32px;border-radius:50%;background:#1E6E72;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;padding-top:6px;text-align:center}
+  .turn-name{font-weight:700;font-size:13px;color:#0E4145}
+  .turn-time{font-size:11px;color:#9ca3af;margin-left:6px}
+  .turn-text{font-size:15px;margin-top:2px}
+  .summary-box{background:#f0fafa;border-left:4px solid #1E6E72;padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0}
+  .plan-row{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:6px}
+  @media print{body{margin:20px}}
+</style></head><body>
+<h1>${rec.title}</h1>
+<div class="meta">${dateStr} &nbsp;·&nbsp; ${fmtDuration(rec.duration)} &nbsp;·&nbsp; ${fmtSize(rec.file_size)}</div>
+${speakers.length ? `<div class="section-label">Speakers</div>${speakers.map(s => `<span class="speaker-chip">${s.name}</span>`).join('')}` : ''}
+${transcript?.summary ? `<div class="section-label">Summary</div><div class="summary-box">${transcript.summary}</div>` : ''}
+${turns.length ? `<div class="section-label">Transcript</div>${turns.map(t => `<div class="turn"><div class="avatar">${(t.speaker_name||'?')[0]}</div><div><div><span class="turn-name">${t.speaker_name}</span><span class="turn-time">${fmtTime(t.timestamp)}</span></div><div class="turn-text">${t.text}</div></div></div>`).join('')}` : ''}
+${detectedPlans.length ? `<div class="section-label">Plans detected</div>${detectedPlans.map(p => `<div class="plan-row"><strong>${p.text}</strong>${p.date ? ` — ${p.date}` : ''}${p.time ? ` ${p.time}` : ''}</div>`).join('')}` : ''}
+</body></html>`
+
+    const w = window.open('', '_blank')
+    if (!w) { alert('Allow pop-ups to export PDF'); return }
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => { w.print(); w.close() }, 300)
+  }
+
+  function handleAskMemoryMate() {
+    const rec = recording!
+    const title = rec.title
+
+    // Build an inline memory so the AI has the actual content — no vector search needed
+    const inlineMemory = {
+      created_at: (recAny.createdAt?.toDate?.() ?? new Date()).toISOString(),
+      summary: transcript?.summary || `Conversation titled "${title}"`,
+      people_met: (rec.speakers || []).map((s: any) => ({ name: s.name, role: s.role || '' })),
+      key_info: transcript?.summary ? [transcript.summary] : [],
+      raw_transcript: turns.length
+        ? turns.map(t => `${t.speaker_name}: ${t.text}`).join('\n')
+        : `(recording: ${title})`,
+      _source: 'transcript_page',
+    }
+
+    const question = tr(
+      `Tell me about my conversation: "${title}"`,
+      `আমার "${title}" কথোপকথনটির ব্যাপারে বলো`
+    )
+    navigate('/patient', { state: { tab: 'chat', initialMessage: question, inlineMemories: [inlineMemory] } })
+  }
+
   return (
     <div className="screen screen-no-tab" style={{ background: 'var(--color-bg)' }}>
       {/* Sticky top bar */}
@@ -408,7 +467,7 @@ export default function Transcript() {
 
         {/* Actions */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-          <button style={{
+          <button onClick={handleExportPDF} style={{
             background: 'var(--color-surface)', color: 'var(--color-ink)',
             border: '1.5px solid var(--color-border)',
             padding: '12px 0', borderRadius: 14, cursor: 'pointer',
@@ -417,7 +476,7 @@ export default function Transcript() {
           }}>
             📄 {tr('Export PDF', 'PDF রপ্তানি')}
           </button>
-          <button style={{
+          <button onClick={handleAskMemoryMate} style={{
             background: 'var(--color-accent)', color: '#fff', border: 'none',
             padding: '12px 0', borderRadius: 14, cursor: 'pointer',
             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700,

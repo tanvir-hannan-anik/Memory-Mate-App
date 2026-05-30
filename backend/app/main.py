@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.api.routes import conversations, chat, plans
+from app.api.routes import conversations, chat, plans, recordings
 from app.services.notifications import start_scheduler, stop_scheduler
 
 
@@ -33,6 +33,7 @@ app.add_middleware(
 app.include_router(conversations.router)
 app.include_router(chat.router)
 app.include_router(plans.router)
+app.include_router(recordings.router)
 
 
 @app.get("/health")

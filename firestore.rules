@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Profiles — owner writes, any authenticated user reads (for caregiver/patient lookups)
+    match /profiles/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Caregiver-Patient links
+    // Any signed-in user can read (needed for queries in Dashboard, Emergency, etc.)
+    // Only the caregiver can create the link.
+    // Either party can update or delete (e.g. to cancel the connection).
+    match /caregiver_patients/{docId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.caregiver_id == request.auth.uid;
+      allow update, delete: if request.auth != null && (
+        resource.data.caregiver_id == request.auth.uid ||
+        resource.data.patient_id  == request.auth.uid
+      );
+    }
+
+    // Plans — patient owns; caregivers may also create/update for their patients
+    match /plans/{planId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Recordings & Transcripts — backend writes; authenticated users read
+    match /recordings/{id}   { allow read, write: if request.auth != null; }
+    match /transcripts/{id}  { allow read, write: if request.auth != null; }
+
+    // Reminders — caregiver owns
+    match /reminders/{id} {
+      allow read, write: if request.auth != null && (
+        resource == null || resource.data.caregiverId == request.auth.uid
+      );
+      allow create: if request.auth != null;
+    }
+
+    // Activity feed — patient + their caregivers
+    match /activity/{id} { allow read, write: if request.auth != null; }
+
+    // FCM tokens — each user owns their own
+    match /fcm_tokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

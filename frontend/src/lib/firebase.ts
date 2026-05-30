@@ -154,6 +154,10 @@ export async function fsUpdateRecording(id: string, data: Record<string, unknown
   return updateDoc(doc(db, 'recordings', id), data)
 }
 
+export async function fsAddTranscript(data: Record<string, unknown>) {
+  return addDoc(collection(db, 'transcripts'), { ...data, createdAt: fsServerTimestamp() })
+}
+
 // ── Reminders ────────────────────────────────────────────────
 export function fsListenReminders(
   caregiverId: string,

@@ -145,6 +145,10 @@ async def send_message(session_id: str, body: ChatMessageIn):
     except Exception:
         rag_context = []
 
+    # Inline memories passed directly from the Transcript page take priority
+    if body.inline_memories:
+        rag_context = body.inline_memories + rag_context
+
     # Fetch user's plans as additional context (past 7 days + next 30 days + all daily)
     try:
         now        = datetime.now(timezone.utc)
@@ -191,6 +195,7 @@ async def send_message(session_id: str, body: ChatMessageIn):
         rag_context=rag_context,
         plans_context=plans_context,
         language=language,
+        profile_context=body.profile_context,
     )
 
     # Persist assistant reply

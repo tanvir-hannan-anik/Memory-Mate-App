@@ -36,9 +36,12 @@ const SUGGESTIONS = [
   { en: 'Did I take my pills?',       bn: 'আমি কি ওষুধ নিয়েছি?'   },
 ]
 
-export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
+export default function Chat({ openSessions: externalOpen, onSessionsOpened, initialMessage, inlineMemories, onInitialMessageSent }: {
   openSessions?: boolean
   onSessionsOpened?: () => void
+  initialMessage?: string
+  inlineMemories?: object[]
+  onInitialMessageSent?: () => void
 } = {}) {
   const { profile } = useAuth()
   const { tr } = useLang()
@@ -54,9 +57,10 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
   const [initializing, setInitializing] = useState(true)
   const [isListening, setIsListening] = useState(false)
 
-  const bottomRef      = useRef<HTMLDivElement>(null)
-  const inputRef       = useRef<HTMLInputElement>(null)
-  const recognitionRef = useRef<any>(null)
+  const bottomRef        = useRef<HTMLDivElement>(null)
+  const inputRef         = useRef<HTMLInputElement>(null)
+  const recognitionRef   = useRef<any>(null)
+  const inlineMemoriesRef = useRef<object[] | undefined>(inlineMemories)
 
   const isEmptyState = !initializing && messages.length === 0
   const firstName    = profile?.name?.split(' ')[0] || 'friend'
@@ -129,6 +133,16 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
     return () => { cancelled = true }
   }, [profile?.id, loadSessions, loadMessages, createSession])
 
+  // Keep inlineMemoriesRef in sync whenever the prop changes
+  useEffect(() => { inlineMemoriesRef.current = inlineMemories }, [inlineMemories])
+
+  // Auto-send initialMessage once session is ready (e.g. from "Ask Memory Mate")
+  useEffect(() => {
+    if (!initialMessage || initializing || !sessionId) return
+    sendMessage(initialMessage)
+    onInitialMessageSent?.()
+  }, [initialMessage, initializing, sessionId])
+
   async function handleNewChat() {
     if (!profile?.id) return
     setShowSessions(false); setInitializing(true)
@@ -175,8 +189,20 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
     setMessages(prev => [...prev, { id: `opt-${Date.now()}`, role: 'user', content: text, timestamp: new Date() }])
     setInput(''); setLoading(true)
     try {
+      const profileCtx = profile ? {
+        name:  profile.name,
+        age:   (profile as any).age,
+        phone: (profile as any).phone,
+        emergency_contacts: (profile as any).emergency_contacts ?? [],
+      } : undefined
+      // Consume inline memories once (for the "Ask Memory Mate" first message)
+      const pendingMemories = inlineMemoriesRef.current
+      inlineMemoriesRef.current = undefined
       const { data } = await api.post(`/chat/${activeSessionId}/message`, {
-        content: text, language: profile?.language || 'en',
+        content: text,
+        language: profile?.language || 'en',
+        profile_context: profileCtx,
+        ...(pendingMemories ? { inline_memories: pendingMemories } : {}),
       })
       setMessages(prev => [...prev, { id: `ai-${Date.now()}`, role: 'assistant', content: data.reply, timestamp: new Date() }])
       if (data.session_name && data.session_name !== sessionName) {

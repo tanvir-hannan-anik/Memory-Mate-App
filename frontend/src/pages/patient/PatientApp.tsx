@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import TabBar, { TabItem } from '@/components/ui/TabBar'
 import DesktopSidebar from '@/components/layout/DesktopSidebar'
 import Icon from '@/components/ui/Icon'
@@ -18,9 +18,23 @@ export default function PatientApp() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'today'
   const setTab = (id: string) => setSearchParams({ tab: id }, { replace: true })
+  const location = useLocation()
 
   const [showEmergency, setShowEmergency] = useState(false)
   const [openChatSessions, setOpenChatSessions] = useState(false)
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>(undefined)
+  const [chatInlineMemories, setChatInlineMemories] = useState<object[] | undefined>(undefined)
+
+  // Handle navigation from Transcript "Ask Memory Mate" button
+  useEffect(() => {
+    const state = location.state as { tab?: string; initialMessage?: string; inlineMemories?: object[] } | null
+    if (state?.tab === 'chat') {
+      setTab('chat')
+      if (state.initialMessage) setChatInitialMessage(state.initialMessage)
+      if (state.inlineMemories) setChatInlineMemories(state.inlineMemories)
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
 
   function handleRecentChats() {
     setTab('chat')
@@ -39,7 +53,7 @@ export default function PatientApp() {
     <>
       {tab === 'today'    && <Today />}
       {tab === 'memories' && <Memories />}
-      {tab === 'chat'     && <Chat openSessions={openChatSessions} onSessionsOpened={() => setOpenChatSessions(false)} />}
+      {tab === 'chat'     && <Chat openSessions={openChatSessions} onSessionsOpened={() => setOpenChatSessions(false)} initialMessage={chatInitialMessage} inlineMemories={chatInlineMemories} onInitialMessageSent={() => { setChatInitialMessage(undefined); setChatInlineMemories(undefined) }} />}
       {tab === 'plans'    && <Plans />}
       {tab === 'profile'  && <PatientProfile />}
       {showEmergency && <Emergency onClose={() => setShowEmergency(false)} />}

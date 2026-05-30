@@ -78,6 +78,11 @@ export default function PatientProfile() {
   const [editPhone, setEditPhone] = useState('')
   const [editLang, setEditLang] = useState<'en' | 'bn'>('en')
   const [saving, setSaving] = useState(false)
+
+  // Emergency contacts (2 manual slots)
+  const [emergencyContacts, setEmergencyContacts] = useState<{name: string; phone: string}[]>([{name:'',phone:''},{name:'',phone:''}])
+  const [editingEmergency, setEditingEmergency] = useState(false)
+  const [savingEmergency, setSavingEmergency] = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoProgress, setPhotoProgress] = useState(0)
 
@@ -92,6 +97,12 @@ export default function PatientProfile() {
     if (!profile) return
     setMorningBriefing((profile as any).notif_morning_briefing ?? true)
     setRemindersOn((profile as any).notif_reminders ?? true)
+    const saved = (profile as any).emergency_contacts as {name:string;phone:string}[] | undefined
+    if (saved?.length) {
+      const filled = [{name:'',phone:''},{name:'',phone:''}]
+      saved.slice(0,2).forEach((c,i) => { filled[i] = c })
+      setEmergencyContacts(filled)
+    }
 
     async function load() {
       const cgSnap = await getDocs(query(
@@ -183,6 +194,17 @@ export default function PatientProfile() {
   async function handleSignOut() {
     await signOut()
     navigate('/welcome', { replace: true })
+  }
+
+  async function saveEmergencyContacts() {
+    setSavingEmergency(true)
+    try {
+      const clean = emergencyContacts.filter(c => c.name.trim() || c.phone.trim())
+      await updateProfile({ emergency_contacts: clean } as any)
+      setEditingEmergency(false)
+    } finally {
+      setSavingEmergency(false)
+    }
   }
 
   const displayName = profile?.name || firebaseUser?.displayName || 'User'
@@ -531,7 +553,8 @@ export default function PatientProfile() {
           <Row
             icon="heart"
             label={tr('Emergency contacts', 'জরুরি যোগাযোগ')}
-            value={tr(`${caregivers.length} connected`, `${caregivers.length} জন যুক্ত`)}
+            value={tr('Tap to manage', 'ট্যাপ করুন')}
+            onClick={() => setEditingEmergency(true)}
           />
         </div>
       </div>
@@ -592,6 +615,114 @@ export default function PatientProfile() {
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
               }}>
                 {tr('Sign out', 'সাইন আউট')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Emergency Contacts sheet ─────────────────────────── */}
+      {editingEmergency && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setEditingEmergency(false)}
+        >
+          <div
+            style={{ width: '100%', background: 'var(--color-bg)', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--color-ink)', marginBottom: 4 }}>
+              {tr('Emergency Contacts', 'জরুরি যোগাযোগ')}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginBottom: 20 }}>
+              {tr('Caregivers are auto-listed. Add up to 2 extra contacts.', 'কেয়ারগিভার স্বয়ংক্রিয়ভাবে তালিকাভুক্ত। আরও ২টি যোগ করুন।')}
+            </div>
+
+            {/* Connected caregivers — read-only */}
+            {caregivers.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-mute)', letterSpacing: 1, marginBottom: 8 }}>
+                  {tr('CAREGIVERS (AUTO)', 'কেয়ারগিভার (স্বয়ংক্রিয়)')}
+                </div>
+                {caregivers.map(cg => (
+                  <div key={cg.caregiver_id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', background: 'var(--color-surface)',
+                    border: '1.5px solid var(--color-border)', borderRadius: 14, marginBottom: 8,
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 18, background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+                      {(cg.caregiver?.name || 'C')[0]}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{cg.caregiver?.name || 'Caregiver'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-ink-soft)' }}>{(cg.caregiver as any)?.phone || cg.caregiver?.email || tr('No phone', 'ফোন নেই')}</div>
+                    </div>
+                    <span style={{ fontSize: 11, background: 'var(--color-accent-soft)', color: 'var(--color-accent)', padding: '2px 8px', borderRadius: 8, fontWeight: 700 }}>
+                      {tr('Caregiver', 'কেয়ারগিভার')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 2 manual slots */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-mute)', letterSpacing: 1, marginBottom: 8 }}>
+              {tr('EXTRA CONTACTS', 'অতিরিক্ত যোগাযোগ')}
+            </div>
+            {emergencyContacts.map((contact, idx) => (
+              <div key={idx} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-mute)', marginBottom: 6 }}>
+                  {tr(`Contact ${idx + 1}`, `যোগাযোগ ${idx + 1}`)}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    placeholder={tr('Name', 'নাম')}
+                    value={contact.name}
+                    onChange={e => {
+                      const next = [...emergencyContacts]
+                      next[idx] = { ...next[idx], name: e.target.value }
+                      setEmergencyContacts(next)
+                    }}
+                    style={{
+                      flex: 1, background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
+                      borderRadius: 14, padding: '10px 14px', fontSize: 15, color: 'var(--color-ink)',
+                      outline: 'none', fontFamily: 'var(--font-body)',
+                    }}
+                  />
+                  <input
+                    placeholder={tr('Phone', 'ফোন')}
+                    value={contact.phone}
+                    type="tel"
+                    onChange={e => {
+                      const next = [...emergencyContacts]
+                      next[idx] = { ...next[idx], phone: e.target.value }
+                      setEmergencyContacts(next)
+                    }}
+                    style={{
+                      flex: 1, background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
+                      borderRadius: 14, padding: '10px 14px', fontSize: 15, color: 'var(--color-ink)',
+                      outline: 'none', fontFamily: 'var(--font-body)',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+              <button onClick={() => setEditingEmergency(false)} style={{
+                background: 'var(--color-surface)', border: '1.5px solid var(--color-border)',
+                padding: '14px 0', borderRadius: 14, cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--color-ink)',
+              }}>
+                {tr('Cancel', 'বাতিল')}
+              </button>
+              <button onClick={saveEmergencyContacts} disabled={savingEmergency} style={{
+                background: 'var(--color-accent)', color: '#fff', border: 'none',
+                padding: '14px 0', borderRadius: 14, cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
+                opacity: savingEmergency ? 0.7 : 1,
+              }}>
+                {savingEmergency ? tr('Saving…', 'সংরক্ষণ হচ্ছে…') : tr('Save', 'সংরক্ষণ')}
               </button>
             </div>
           </div>

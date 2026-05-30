@@ -57,6 +57,8 @@ class ChatSessionOut(BaseModel):
 class ChatMessageIn(BaseModel):
     content: str
     language: str = 'en'   # 'en' or 'bn' — from user profile
+    profile_context: Optional[dict] = None   # {name, age, phone, emergency_contacts}
+    inline_memories: Optional[list] = None   # transcript data passed directly from Transcript page
 
 class ChatMessageOut(BaseModel):
     id: str

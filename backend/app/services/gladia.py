@@ -14,12 +14,12 @@ HEADERS = {
 }
 
 
-async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
+async def transcribe_audio(audio_bytes: bytes, filename: str) -> tuple[str, list]:
     """
     Upload audio to Gladia, request diarization, poll until done.
-    Returns formatted transcript:
-        Speaker 1: আমার নাম রাহেলা...
-        Speaker 2: আমি ডাক্তার করিম...
+    Returns (formatted_transcript, utterances):
+      - formatted_transcript: "Speaker 1: text\\nSpeaker 2: text"
+      - utterances: raw Gladia utterance dicts with speaker, text, start, end
     """
     async with httpx.AsyncClient(timeout=120) as client:
         # 1. Upload the audio file
@@ -59,11 +59,20 @@ async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
             poll.raise_for_status()
             data = poll.json()
             if data.get("status") == "done":
-                return _format_transcript(data)
+                utterances = _get_utterances(data)
+                return _format_transcript(data), utterances
             if data.get("status") == "error":
                 raise RuntimeError(f"Gladia error: {data.get('error_message')}")
 
     raise TimeoutError("Gladia transcription timed out after 5 minutes")
+
+
+def _get_utterances(data: dict) -> list:
+    return (
+        data.get("result", {})
+        .get("transcription", {})
+        .get("utterances", [])
+    )
 
 
 def _format_transcript(data: dict) -> str:

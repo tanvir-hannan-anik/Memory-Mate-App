@@ -49,7 +49,7 @@ async def upload_conversation(
             image_paths.append(path)
 
         # 4. Transcribe with Gladia (diarized, Bangla + English)
-        raw_transcript = await gladia.transcribe_audio(audio_bytes, audio.filename)
+        raw_transcript, _ = await gladia.transcribe_audio(audio_bytes, audio.filename)
 
         # 5. Extract structured info with Claude
         extracted = await llm.extract_conversation_info(raw_transcript)

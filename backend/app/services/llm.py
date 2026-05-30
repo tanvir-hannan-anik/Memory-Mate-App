@@ -254,8 +254,33 @@ async def rag_chat(
     rag_context: list[dict],
     plans_context: list[dict],
     language: str = 'en',
+    profile_context: dict | None = None,
 ) -> str:
     context_parts = []
+
+    # ── Patient profile ────────────────────────────────────────────────────
+    if profile_context:
+        lines = ["=== PATIENT PROFILE (WHO YOU ARE TALKING TO) ==="]
+        if profile_context.get("name"):
+            lines.append(f"Name: {profile_context['name']}")
+        if profile_context.get("age"):
+            lines.append(f"Age: {profile_context['age']}")
+        if profile_context.get("phone"):
+            lines.append(f"Phone: {profile_context['phone']}")
+        contacts = profile_context.get("emergency_contacts") or []
+        if contacts:
+            lines.append("Emergency contacts:")
+            for c in contacts:
+                if c.get("name") or c.get("phone"):
+                    lines.append(f"  - {c.get('name', '?')}: {c.get('phone', '?')}")
+        caregivers = profile_context.get("caregivers") or []
+        if caregivers:
+            lines.append("Caregivers:")
+            for cg in caregivers:
+                if cg.get("name") or cg.get("phone"):
+                    lines.append(f"  - {cg.get('name', '?')}: {cg.get('phone', '?')}")
+        lines.append("=== END PATIENT PROFILE ===\n")
+        context_parts.append("\n".join(lines))
 
     # ── Recorded conversations ─────────────────────────────────────────────
     if rag_context:
