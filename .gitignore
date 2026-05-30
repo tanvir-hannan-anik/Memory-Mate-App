@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Environment files
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vite
+.vite/
+
+# Python venv
+venv/
+.venv/
+env/
+
+# UI prototype assets
+"UI prototype/.thumbnail"
