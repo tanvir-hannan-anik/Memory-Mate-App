@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -21,13 +21,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-_raw = os.environ.get("ALLOWED_ORIGINS", "*")
-_origins = [o.strip() for o in _raw.split(",")] if _raw != "*" else ["*"]
-
+# Hardcoded open CORS — allow_credentials=False is required when allow_origins=["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=False,   # we use Authorization header, not cookies
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,7 +42,6 @@ async def health():
 
 @app.get("/debug")
 async def debug():
-    """Check all service connections — use this to diagnose deployment issues."""
     result: dict = {}
     try:
         from app.db.supabase import get_supabase
