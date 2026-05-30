@@ -110,11 +110,12 @@ export default function Chat({ openSessions: externalOpen, onSessionsOpened }: {
         if (!cancelled) {
           const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
           const status = err?.response?.status
+          const base = import.meta.env.VITE_API_BASE_URL || '(VITE_API_BASE_URL not set)'
           setMessages([{
             id: 'init-err',
             role: 'assistant',
             content: tr(
-              `Chat server error${status ? ` (${status})` : ''}: ${detail}. Check your Render backend URL and Supabase environment variables.`,
+              `Chat server error${status ? ` (${status})` : ''}: ${detail}. API URL: ${base}`,
               `সার্ভার সংযোগ ব্যর্থ: ${detail}`
             ),
             timestamp: new Date(),
